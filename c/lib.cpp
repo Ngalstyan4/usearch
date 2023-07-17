@@ -56,6 +56,7 @@ add_result_t add_(index_t* index, usearch_label_t label, void const* vector, sca
     }
 }
 
+#if USEARCH_LOOKUP_LABEL
 bool get_(index_t* index, label_t label, void* vector, scalar_kind_t kind) {
     switch (kind) {
     case scalar_kind_t::f32_k: return index->get(label, (f32_t*)vector);
@@ -66,6 +67,7 @@ bool get_(index_t* index, label_t label, void* vector, scalar_kind_t kind) {
     default: return index->empty_search_result().failed("Unknown scalar kind!");
     }
 }
+#endif
 
 search_result_t search_(index_t* index, void const* vector, scalar_kind_t kind, size_t n) {
     switch (kind) {
@@ -175,9 +177,11 @@ void usearch_add(                                                               
         *error = result.error.what();
 }
 
+#if USEARCH_LOOKUP_LABEL
 bool usearch_contains(usearch_index_t index, usearch_label_t label, usearch_error_t*) {
     return reinterpret_cast<index_t*>(index)->contains(label);
 }
+#endif
 
 size_t usearch_search(                                                                           //
     usearch_index_t index, void const* vector, usearch_scalar_kind_t kind, size_t results_limit, //
@@ -191,11 +195,13 @@ size_t usearch_search(                                                          
     return result.dump_to(found_labels, found_distances);
 }
 
+#if USEARCH_LOOKUP_LABEL
 bool usearch_get(                                 //
     usearch_index_t index, usearch_label_t label, //
     void* vector, usearch_scalar_kind_t kind, usearch_error_t*) {
     return get_(reinterpret_cast<index_t*>(index), label, vector, to_native_scalar(kind));
 }
+#endif
 
 void usearch_remove(usearch_index_t, usearch_label_t, usearch_error_t* error) {
     if (error != nullptr)

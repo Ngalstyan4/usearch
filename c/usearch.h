@@ -78,7 +78,9 @@ void usearch_add(                                                               
     usearch_index_t, usearch_label_t, void const* vector, usearch_scalar_kind_t vector_kind, //
     usearch_error_t*);
 
+#if USEARCH_LOOKUP_LABEL
 bool usearch_contains(usearch_index_t, usearch_label_t, usearch_error_t*);
+#endif
 
 /**
  *  @brief      Performs k-Approximate Nearest Neighbors Search.

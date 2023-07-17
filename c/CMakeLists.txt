@@ -9,6 +9,7 @@ if (POLICY CMP0077)
 endif ()
 
 option(USEARCH_USE_SIMSIMD "Use SimSIMD hardware-accelerated metrics" OFF)
+option(USEARCH_LOOKUP_LABEL "Support containment and lookup queries over labels" ON)
 option(USEARCH_NO_MARCH_NATIVE "Skip -march-native flat in compilation" OFF)
 option(USEARCH_BUILD_LIBUSEARCH_STATIC "Build a static libusearch_c library" ON)
 option(USEARCH_BUILD_LIBUSEARCH_SHARED "Build a shated libusearch_c library " OFF)
@@ -76,6 +77,9 @@ if(${USEARCH_BUILD_LIBUSEARCH_STATIC} OR ${USEARCH_BUILD_LIBUSEARCH_SHARED})
 
     if(${USEARCH_USE_SIMSIMD})
         target_compile_definitions(usearch_c PRIVATE USEARCH_USE_SIMSIMD=1)
+    endif()
+    if (${USEARCH_LOOKUP_LABEL})
+        target_compile_definitions(usearch_c PRIVATE USEARCH_LOOKUP_LABEL=1)
     endif()
 endif()
 

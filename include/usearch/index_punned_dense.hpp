@@ -163,8 +163,10 @@ class index_punned_dense_gt {
     using shared_lock_t = std::unique_lock<shared_mutex_t>;
     using unique_lock_t = std::unique_lock<shared_mutex_t>;
 
+#if USEARCH_LOOKUP_LABEL
     mutable shared_mutex_t lookup_table_mutex_;
     tsl::robin_map<label_t, id_t> lookup_table_;
+#endif
 
   public:
     using search_result_t = typename index_t::search_result_t;
@@ -260,6 +262,7 @@ class index_punned_dense_gt {
         return typed_->memory_usage(allocator_entry_bytes);
     }
 
+#if USEARCH_LOOKUP_LABEL
     bool contains(label_t label) const {
         shared_lock_t lock(lookup_table_mutex_);
         return lookup_table_.contains(label);
@@ -270,6 +273,7 @@ class index_punned_dense_gt {
         for (auto it = lookup_table_.begin(); it != lookup_table_.end() && limit; ++it, ++labels, --limit)
             *labels = it->first;
     }
+#endif
 
     // clang-format off
     add_result_t add(label_t label, b1x8_t const* vector) { return add_(label, vector, casts_.from_b1x8); }
@@ -310,11 +314,13 @@ class index_punned_dense_gt {
 
     search_result_t empty_search_result() const { return search_result_t{*typed_}; }
 
+#if USEARCH_LOOKUP_LABEL
     bool get(label_t label, b1x8_t* vector) const { return get_(label, vector, casts_.to_b1x8); }
     bool get(label_t label, f8_bits_t* vector) const { return get_(label, vector, casts_.to_f8); }
     bool get(label_t label, f16_t* vector) const { return get_(label, vector, casts_.to_f16); }
     bool get(label_t label, f32_t* vector) const { return get_(label, vector, casts_.to_f32); }
     bool get(label_t label, f64_t* vector) const { return get_(label, vector, casts_.to_f64); }
+#endif
     // clang-format on
 
     static index_punned_dense_gt make(                       //
@@ -393,10 +399,12 @@ class index_punned_dense_gt {
             vector_data = casted_data, vector_bytes = casted_vector_bytes_, config.store_vector = true;
 
         add_result_t result = typed_->add(label, {vector_data, vector_bytes}, config);
+#if USEARCH_LOOKUP_LABEL
         {
             unique_lock_t lock(lookup_table_mutex_);
             lookup_table_.emplace(label, result.id);
         }
+#endif
         return result;
     }
 
@@ -433,6 +441,7 @@ class index_punned_dense_gt {
     }
 
     void reindex_labels() {
+#if USEARCH_LOOKUP_LABEL
         shared_lock_t lock(lookup_table_mutex_);
         lookup_table_.clear();
         for (std::size_t i = 0; i != typed_->size(); ++i) {
@@ -440,8 +449,10 @@ class index_punned_dense_gt {
             member_cref_t member = *iterator;
             lookup_table_[member.label] = static_cast<id_t>(i);
         }
+#endif
     }
 
+#if USEARCH_LOOKUP_LABEL
     id_t lookup_id_(label_t label) const {
         shared_lock_t lock(lookup_table_mutex_);
         return lookup_table_.at(label);
@@ -464,6 +475,7 @@ class index_punned_dense_gt {
             std::memcpy(reconstructed, punned_vector, casted_vector_bytes_);
         return true;
     }
+#endif
 
     template <typename scalar_at> add_result_t add_(label_t label, scalar_at const* vector, cast_t const& cast) {
         thread_lock_t lock = thread_lock_();
