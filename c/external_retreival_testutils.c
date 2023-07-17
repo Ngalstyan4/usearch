@@ -60,4 +60,13 @@ void prepare_external_index(char* mapped_index, int dim, size_t num_vectors, use
     print_level_histo(all_levels, 20);
 }
 
-void* node_retriever(unsigned long int id) { return nodes[id]; }
+void free_external_index() { free(nodes); }
+
+void* node_retriever(int id) {
+    fprintf(stderr, "retrieving node %d\n", id);
+    return nodes[id];
+}
+void* node_retriever_mut(int id) {
+    fprintf(stderr, "mutating node %d\n", id);
+    return nodes[id];
+}

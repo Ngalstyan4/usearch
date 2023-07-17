@@ -1548,6 +1548,7 @@ class index_gt {
     // the original node_with_id_ member function is still available as builtin_node_with_id_()
     // todo:: uint32_t here should be id_t. change it once I figure out a way to enforce these in the c bindings
     std::function<node_t(std::uint32_t)> node_with_id_ = [this](std::uint32_t idx) { return nodes_[idx]; };
+    std::function<node_t(std::uint32_t)> node_with_id_mut_ = [this](std::uint32_t idx) { return nodes_[idx]; };
     bool custom_node_retriever_ = false;
     bool debug_node_retriever_ = false;
     mutable visits_bitset_t nodes_mutexes_{};
@@ -1817,7 +1818,8 @@ class index_gt {
      *  @param[in] vector Contiguous range of scalars forming a vector view.
      *  @param[in] config Configuration options for this specific operation.
      */
-    add_result_t add(label_t label, vector_view_t vector, add_config_t config = {}) usearch_noexcept_m {
+    add_result_t add(label_t label, vector_view_t vector, add_config_t config = {},
+                     level_t level = -1) usearch_noexcept_m {
 
         usearch_assert_m(!is_immutable(), "Can't add to an immutable index");
         add_result_t result;
@@ -1841,17 +1843,29 @@ class index_gt {
         std::unique_lock<std::mutex> new_level_lock(global_mutex_);
         level_t max_level_copy = max_level_; // Copy under lock
         id_t entry_id_copy = entry_id_;      // Copy under lock
-        level_t target_level = choose_random_level_(context.level_generator);
+        usearch_assert_m(custom_node_retriever_ ^ (level == -1),
+                         "Must generate and specify level iff nodes are externally stored");
+        level_t target_level = level != -1 ? level : choose_random_level_(context.level_generator);
         if (target_level <= max_level_copy)
             new_level_lock.unlock();
 
-        // Allocate the neighbors
-        node_t node = node_malloc_(label, vector, target_level, config.store_vector);
-        if (!node)
-            return result.failed("Out of memory!");
+        // Allocate node tape (config, the neighbors and optionally the vector)
+        node_t node;
+        if (!custom_node_retriever_) {
+            node = node_malloc_(label, vector, target_level, config.store_vector);
+            if (!node)
+                return result.failed("Out of memory!");
+        }
         std::size_t old_size = size_.fetch_add(1);
         id_t new_id = static_cast<id_t>(old_size);
-        nodes_[old_size] = node;
+        if (!custom_node_retriever_) {
+            // node internally stored. save the node we just allocated
+            nodes_[old_size] = node;
+        } else {
+            // node externally stored. retrieve the node from the user
+            node = node_with_id_mut_(old_size);
+        }
+
         result.new_size = old_size + 1;
         result.id = new_id;
         node_lock_t new_lock = node_lock_(old_size);
@@ -1883,6 +1897,7 @@ class index_gt {
 
         // Updating the entry point if needed
         if (target_level > max_level_copy) {
+            usearch_assert_m(new_level_lock.owns_lock(), "Must hold the new level lock when changing max level");
             entry_id_ = new_id;
             max_level_ = target_level;
         }
@@ -2322,7 +2337,9 @@ class index_gt {
     }
 
     using node_retriever_t = void* (*)(int index);
-    void set_node_retriever(node_retriever_t external_node_retriever) noexcept {
+
+    void set_node_retriever(node_retriever_t external_node_retriever,
+                            node_retriever_t external_node_retriever_mut) noexcept {
         custom_node_retriever_ = true;
 #ifdef DEBUG_RETRIEVER
         debug_node_retriever_ = true;
@@ -2452,7 +2469,7 @@ class index_gt {
 
     id_t connect_new_node_(id_t new_id, level_t level, context_t& context) usearch_noexcept_m {
 
-        node_t new_node = node_with_id_(new_id);
+        node_t new_node = node_with_id_mut_(new_id);
         top_candidates_t& top = context.top_candidates;
         std::size_t const connectivity_max = level ? config_.connectivity : pre_.connectivity_max_base;
 
@@ -2471,8 +2488,8 @@ class index_gt {
 
         // Reverse links from the neighbors:
         for (id_t close_id : new_neighbors) {
-            node_t close_node = node_with_id_(close_id);
-            node_lock_t close_lock = node_lock_(close_id);
+            node_t close_node = node_with_id_mut_(close_id);
+            node_lock_t close_lock = node_lock_(close_id); //--<< remove on inserts
 
             neighbors_ref_t close_header = neighbors_(close_node, level);
             usearch_assert_m(close_header.size() <= connectivity_max, "Possible corruption");
@@ -2489,10 +2506,13 @@ class index_gt {
             // To fit a new connection we need to drop an existing one.
             top.clear();
             usearch_assert_m((top.reserve(close_header.size() + 1)), "The memory must have been reserved in `add`");
+            // insert the newly added node to the competition for neighbors of close_node
             top.insert_reserved({context.measure(new_node, close_node), new_id});
+            // add the existing neighbors of close_node to the competition
             for (id_t successor_id : close_header)
                 top.insert_reserved({context.measure(node_with_id_(successor_id), close_node), successor_id});
 
+            // select the closest ones and update close_node neighbors. no other node is changed
             // Export the results:
             close_header.clear();
             candidates_view_t top_view = refine_(top, connectivity_max, context);

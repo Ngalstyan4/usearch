@@ -45,9 +45,9 @@ scalar_kind_t to_native_scalar(usearch_scalar_kind_t kind) {
     }
 }
 
-add_result_t add_(index_t* index, usearch_label_t label, void const* vector, scalar_kind_t kind) {
+add_result_t add_(index_t* index, usearch_label_t label, void const* vector, scalar_kind_t kind, int32_t level) {
     switch (kind) {
-    case scalar_kind_t::f32_k: return index->add(label, (f32_t const*)vector);
+    case scalar_kind_t::f32_k: return index->add(label, (f32_t const*)vector, level);
     case scalar_kind_t::f64_k: return index->add(label, (f64_t const*)vector);
     case scalar_kind_t::f16_k: return index->add(label, (f16_t const*)vector);
     case scalar_kind_t::f8_k: return index->add(label, (f8_bits_t const*)vector);
@@ -172,7 +172,15 @@ void usearch_reserve(usearch_index_t index, size_t capacity, usearch_error_t*) {
 void usearch_add(                                                                                 //
     usearch_index_t index, usearch_label_t label, void const* vector, usearch_scalar_kind_t kind, //
     usearch_error_t* error) {
-    add_result_t result = add_(reinterpret_cast<index_t*>(index), label, vector, to_native_scalar(kind));
+    add_result_t result = add_(reinterpret_cast<index_t*>(index), label, vector, to_native_scalar(kind), -1);
+    if (!result)
+        *error = result.error.what();
+}
+
+void usearch_add_external(                                                                        //
+    usearch_index_t index, usearch_label_t label, void const* vector, usearch_scalar_kind_t kind, //
+    int32_t level, usearch_error_t* error) {
+    add_result_t result = add_(reinterpret_cast<index_t*>(index), label, vector, to_native_scalar(kind), level);
     if (!result)
         *error = result.error.what();
 }
@@ -208,7 +216,8 @@ void usearch_remove(usearch_index_t, usearch_label_t, usearch_error_t* error) {
         *error = "Usearch does not support removal of elements yet.";
 }
 
-void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever, usearch_error_t*) {
-    reinterpret_cast<index_t*>(index)->set_node_retriever(retriever);
+void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever,
+                                usearch_node_retriever_t retriever_mut, usearch_error_t*) {
+    reinterpret_cast<index_t*>(index)->set_node_retriever(retriever, retriever_mut);
 }
 }

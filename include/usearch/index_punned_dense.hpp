@@ -261,7 +261,9 @@ class index_punned_dense_gt {
         return result;
     }
 
-    void set_node_retriever(node_retriever_t node_retriever) { typed_->set_node_retriever(node_retriever); }
+    void set_node_retriever(node_retriever_t node_retriever, node_retriever_t node_retriever_mut) {
+        typed_->set_node_retriever(node_retriever, node_retriever_mut);
+    }
 
     std::size_t memory_usage(std::size_t allocator_entry_bytes = default_allocator_entry_bytes()) const {
         return typed_->memory_usage(allocator_entry_bytes);
@@ -284,7 +286,7 @@ class index_punned_dense_gt {
     add_result_t add(label_t label, b1x8_t const* vector) { return add_(label, vector, casts_.from_b1x8); }
     add_result_t add(label_t label, f8_bits_t const* vector) { return add_(label, vector, casts_.from_f8); }
     add_result_t add(label_t label, f16_t const* vector) { return add_(label, vector, casts_.from_f16); }
-    add_result_t add(label_t label, f32_t const* vector) { return add_(label, vector, casts_.from_f32); }
+    add_result_t add(label_t label, f32_t const* vector, int32_t level = -1) { return add_(label, vector, casts_.from_f32, level); }
     add_result_t add(label_t label, f64_t const* vector) { return add_(label, vector, casts_.from_f64); }
 
     add_result_t add(label_t label, b1x8_t const* vector, add_config_t config) { return add_(label, vector, config, casts_.from_b1x8); }
@@ -394,7 +396,7 @@ class index_punned_dense_gt {
     }
 
     template <typename scalar_at>
-    add_result_t add_(label_t label, scalar_at const* vector, add_config_t config, cast_t const& cast) {
+    add_result_t add_(label_t label, scalar_at const* vector, add_config_t config, cast_t const& cast, int32_t level = -1) {
         byte_t const* vector_data = reinterpret_cast<byte_t const*>(vector);
         std::size_t vector_bytes = dimensions_ * sizeof(scalar_at);
 
@@ -403,7 +405,7 @@ class index_punned_dense_gt {
         if (casted)
             vector_data = casted_data, vector_bytes = casted_vector_bytes_, config.store_vector = true;
 
-        add_result_t result = typed_->add(label, {vector_data, vector_bytes}, config);
+        add_result_t result = typed_->add(label, {vector_data, vector_bytes}, config, level);
 #if USEARCH_LOOKUP_LABEL
         {
             unique_lock_t lock(lookup_table_mutex_);
@@ -482,11 +484,11 @@ class index_punned_dense_gt {
     }
 #endif
 
-    template <typename scalar_at> add_result_t add_(label_t label, scalar_at const* vector, cast_t const& cast) {
+    template <typename scalar_at> add_result_t add_(label_t label, scalar_at const* vector, cast_t const& cast, int32_t level = -1) {
         thread_lock_t lock = thread_lock_();
         add_config_t add_config;
         add_config.thread = lock.thread_id;
-        return add_(label, vector, add_config, cast);
+        return add_(label, vector, add_config, cast, level);
     }
 
     template <typename scalar_at>

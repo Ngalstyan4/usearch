@@ -268,7 +268,7 @@ void test_index(float* data, size_t num_vectors, size_t vector_dim) {
     // a custom retriever be present to prevent accidental acces to internal nodes_
     // so, we set a custom retriever before loading the index
     fprintf(stderr, "\tsetting node retriever...\n");
-    usearch_set_node_retriever(idx, &node_retriever, &error);
+    usearch_set_node_retriever(idx, &node_retriever, &node_retriever_mut, &error);
     assert(!error);
     usearch_view_mem_lazy(idx, mapped_index, &error);
     assert(!error);

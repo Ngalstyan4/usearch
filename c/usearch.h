@@ -77,6 +77,9 @@ void usearch_reserve(usearch_index_t, size_t capacity, usearch_error_t*);
 void usearch_add(                                                                            //
     usearch_index_t, usearch_label_t, void const* vector, usearch_scalar_kind_t vector_kind, //
     usearch_error_t*);
+void usearch_add_external(                                                                        //
+    usearch_index_t index, usearch_label_t label, void const* vector, usearch_scalar_kind_t kind, //
+    int32_t level, usearch_error_t* error);
 
 #if USEARCH_LOOKUP_LABEL
 bool usearch_contains(usearch_index_t, usearch_label_t, usearch_error_t*);
@@ -96,7 +99,8 @@ bool usearch_get(                     //
 
 void usearch_remove(usearch_index_t, usearch_label_t, usearch_error_t*);
 
-void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever, usearch_error_t* error);
+void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever,
+                                usearch_node_retriever_t retriever_mut, usearch_error_t* error);
 
 #ifdef __cplusplus
 }
