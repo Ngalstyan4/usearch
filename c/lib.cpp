@@ -209,7 +209,6 @@ void usearch_remove(usearch_index_t, usearch_label_t, usearch_error_t* error) {
 }
 
 void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever, usearch_error_t*) {
-    auto typed_func = index_t::node_retriever_t{retriever};
-    reinterpret_cast<index_t*>(index)->set_node_retriever(typed_func);
+    reinterpret_cast<index_t*>(index)->set_node_retriever(retriever);
 }
 }

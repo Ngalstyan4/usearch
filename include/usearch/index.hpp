@@ -2314,7 +2314,7 @@ class index_gt {
         return view_mem(file);
     }
 
-    using node_retriever_t = std::function<void*(size_t index)>;
+    using node_retriever_t = void* (*)(int index);
     void set_node_retriever(node_retriever_t external_node_retriever) noexcept {
         custom_node_retriever_ = true;
 #ifdef DEBUG_RETRIEVER
