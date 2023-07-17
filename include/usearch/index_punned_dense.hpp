@@ -183,7 +183,12 @@ class index_punned_dense_gt {
         return *this;
     }
 
-    ~index_punned_dense_gt() { index_allocator_t{}.deallocate(typed_, 1); }
+    ~index_punned_dense_gt() {
+        if (typed_)
+            typed_->~index_t();
+        ;
+        index_allocator_t{}.deallocate(typed_, 1);
+    }
 
     void swap(index_punned_dense_gt& other) {
         std::swap(dimensions_, other.dimensions_);

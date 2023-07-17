@@ -904,6 +904,9 @@ class sorted_buffer_gt {
 
         if (size_) {
             std::memcpy(new_elements, elements_, size_ * sizeof(element_t));
+        }
+
+        if (elements_) {
             allocator.deallocate(elements_, capacity_);
         }
         elements_ = new_elements;
@@ -1616,8 +1619,12 @@ class index_gt {
 
         if (nodes_)
             node_allocator_t{}.deallocate(exchange(nodes_, nullptr), limits_.elements);
-        if (contexts_)
+        if (contexts_) {
+            for (std::size_t i = 0; i != limits_.threads(); ++i) {
+                contexts_[i].~context_t();
+            }
             context_allocator_t{}.deallocate(exchange(contexts_, nullptr), limits_.threads());
+        }
         limits_ = index_limits_t{0, 0};
         capacity_ = 0;
         reset_view_();
@@ -2378,7 +2385,15 @@ class index_gt {
 
         if (viewed_file_)
             return;
+        // for view_mem and view_mem_lazy where file is provided by the caller so the above does not apply
+        if (!nodes_)
+            return;
 
+        // index_punned_dense uses memory_mapping_allocator_gt which is allocate-many free once allocator
+        // so the first call to deallocate deallocates everything!
+        // todo:: remove index->index_punned dependency
+        if (id != 0)
+            return;
         node_t& node = nodes_[id];
         std::size_t node_bytes = node_bytes_(node) - node_vector_bytes_(node) * !node_stored_(node);
         point_allocator_.deallocate(node.tape(), node_bytes);
