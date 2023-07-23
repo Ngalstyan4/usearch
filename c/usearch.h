@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 #include <stdbool.h> // `bool`
-#include <stdint.h>  // `uint64_t`
 #include <stddef.h>  // `size_t`
+#include <stdint.h>  // `uint64_t`
 
 typedef void* usearch_index_t;
 typedef uint64_t usearch_label_t;
@@ -65,6 +65,7 @@ void usearch_load(usearch_index_t, char const* path, usearch_error_t*);
 void usearch_view(usearch_index_t, char const* path, usearch_error_t*);
 void usearch_view_mem(usearch_index_t index, char* data, usearch_error_t* error);
 void usearch_view_mem_lazy(usearch_index_t index, char* data, usearch_error_t* error);
+void usearch_update_header(usearch_index_t index, char* headerp, usearch_error_t* error);
 
 usearch_metadata_t usearch_metadata(usearch_index_t, usearch_error_t*);
 size_t usearch_size(usearch_index_t, usearch_error_t*);
@@ -77,8 +78,11 @@ void usearch_reserve(usearch_index_t, size_t capacity, usearch_error_t*);
 void usearch_add(                                                                            //
     usearch_index_t, usearch_label_t, void const* vector, usearch_scalar_kind_t vector_kind, //
     usearch_error_t*);
-void usearch_add_external(                                                                        //
-    usearch_index_t index, usearch_label_t label, void const* vector, usearch_scalar_kind_t kind, //
+
+int32_t usearch_newnode_level(usearch_index_t index, usearch_error_t* error);
+
+void usearch_add_external(                                                                                    //
+    usearch_index_t index, usearch_label_t label, void const* vector, void* tape, usearch_scalar_kind_t kind, //
     int32_t level, usearch_error_t* error);
 
 #if USEARCH_LOOKUP_LABEL

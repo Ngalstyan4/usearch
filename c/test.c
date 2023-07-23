@@ -236,7 +236,7 @@ void test_index(float* data, size_t num_vectors, size_t vector_dim) {
     }
 
     // Map the entire file
-    mapped_index = (char*)mmap(NULL, file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    mapped_index = (char*)mmap(NULL, file_stat.st_size, PROT_READ| PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (mapped_index == MAP_FAILED) {
         close(fd);
         fprintf(stderr, "Failed to mmap file: %s", "usearch_index.bin");
@@ -288,6 +288,57 @@ void test_index(float* data, size_t num_vectors, size_t vector_dim) {
     assert(!error);
 
     usearch_free(idx, &error);
+
+    /*********x** LAZY RETRIEVER INSERT SHENANIGANS END *****************************/
+    {
+        // testing inserts into the external index
+        idx = usearch_init(&opts, &error);
+        assert(!error);
+        assert(usearch_size(idx, &error) == 0);
+        assert(!error);
+
+#ifdef DEBUG_RETRIEVER
+        fprintf(stderr, "\tsetting node retriever DEBUG MODE...\n");
+
+        // when debugging our custom retriever, we have usearch load the index as usual
+        // and internally compare the results of the custom and builtin retrievers
+        // we load the index first to make sure it is loded properly even if our custom
+        // retriever is broken
+        usearch_view_mem(idx, mapped_index, &error);
+
+        // after the index is loaded, we change the retriever so from here on all search, add, etc
+        // queries will be passed through our custom retriever
+        usearch_set_node_retriever(idx, &node_retriever, &error);
+        assert(!error);
+#else
+        // when not in debug mode, we load the index with view_mem_lazy which enforces that
+        // a custom retriever be present to prevent accidental acces to internal nodes_
+        // so, we set a custom retriever before loading the index
+        fprintf(stderr, "\tsetting node retriever...\n");
+        usearch_set_node_retriever(idx, &node_retriever, &node_retriever_mut, &error);
+#endif
+
+        // todo:: obtain size in another manner and move before set_node_retriever
+        //  the custom retriever uses the global node_data to find the relevant node
+        usearch_metadata_t meta = usearch_metadata(idx, &error);
+
+        assert(usearch_size(idx, &error) == 0);
+        assert(!error);
+        usearch_search(idx, data, usearch_scalar_f32_k, k, labels, distances, &error);
+        assert(!error);
+
+        usearch_reserve(idx, 4, &error);
+        int level = usearch_newnode_level(idx, &error);
+        usearch_add_external(idx, 42, data, usearch_scalar_f32_k, 0, &error);
+        usearch_add_external(idx, 42, data, usearch_scalar_f32_k, 0, &error);
+
+        usearch_free(idx, &error);
+    }
+    /*********x** LAZY RETRIEVER INSERT SHENANIGANS END *****************************/
+
+    free_external_index();
+    free(labels);
+    free(distances);
     munmap(mapped_index, file_stat.st_size);
     close(fd);
     assert(!error);

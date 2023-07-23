@@ -1812,14 +1812,27 @@ class index_gt {
     };
 
     /**
+     *  @brief Generate a random level for a new externally stored vector. Thread-safe.
+     *
+     *  @param[in] config Configuration options for this specific operation.
+     * @return The level to use for the new vector add operation.
+     */
+    level_t choose_random_level(add_config_t config) {
+        context_t& context = contexts_[config.thread];
+        return choose_random_level_(context.level_generator);
+    }
+
+    /**
      *  @brief Inserts a new vector into the index. Thread-safe.
      *
      *  @param[in] label External identifier/name/descriptor for the vector.
      *  @param[in] vector Contiguous range of scalars forming a vector view.
      *  @param[in] config Configuration options for this specific operation.
+     *  @param[in] level The level to use for the new vector add operation (external storage only).
+     *  @param[in] tape The tape to use for the new vector add operation (external storage only).
      */
-    add_result_t add(label_t label, vector_view_t vector, add_config_t config = {},
-                     level_t level = -1) usearch_noexcept_m {
+    add_result_t add(label_t label, vector_view_t vector, add_config_t config = {}, level_t level = -1,
+                     byte_t* tape = nullptr) usearch_noexcept_m {
 
         usearch_assert_m(!is_immutable(), "Can't add to an immutable index");
         add_result_t result;
@@ -1843,27 +1856,29 @@ class index_gt {
         std::unique_lock<std::mutex> new_level_lock(global_mutex_);
         level_t max_level_copy = max_level_; // Copy under lock
         id_t entry_id_copy = entry_id_;      // Copy under lock
-        usearch_assert_m(custom_node_retriever_ ^ (level == -1),
-                         "Must generate and specify level iff nodes are externally stored");
+        usearch_assert_m(custom_node_retriever_ ^ (level == -1 && tape == nullptr),
+                         "Must generate and specify level&tape iff nodes are externally stored");
         level_t target_level = level != -1 ? level : choose_random_level_(context.level_generator);
         if (target_level <= max_level_copy)
             new_level_lock.unlock();
 
-        // Allocate node tape (config, the neighbors and optionally the vector)
+        // Allocate and initialize node tape (config, the neighbors and optionally the vector)
         node_t node;
         if (!custom_node_retriever_) {
             node = node_malloc_(label, vector, target_level, config.store_vector);
             if (!node)
                 return result.failed("Out of memory!");
+        } else {
+            node = node_init_(tape, label, vector, target_level, config.store_vector);
+            if (!node)
+                return result.failed("Node init failed. Bad tape?");
         }
+
         std::size_t old_size = size_.fetch_add(1);
         id_t new_id = static_cast<id_t>(old_size);
         if (!custom_node_retriever_) {
             // node internally stored. save the node we just allocated
             nodes_[old_size] = node;
-        } else {
-            // node externally stored. retrieve the node from the user
-            node = node_with_id_mut_(old_size);
         }
 
         result.new_size = old_size + 1;
@@ -1888,7 +1903,7 @@ class index_gt {
         for (level_t level = (std::min)(target_level, max_level_copy); level >= 0; --level) {
             // TODO: Handle out of memory conditions
             search_to_insert_(closest_id, vector, level, config.expansion, context);
-            closest_id = connect_new_node_(new_id, level, context);
+            closest_id = connect_new_node_(node, new_id, level, context);
         }
 
         // Normalize stats
@@ -2251,6 +2266,12 @@ class index_gt {
         return std::move(result);
     }
 
+    serialization_result_t update_header(byte_t* headerp) noexcept {
+        serialization_result_t result;
+        result = save_index_header(headerp);
+        return std::move(result);
+    }
+
     serialization_result_t view_mem(byte_t* file) noexcept {
         serialization_result_t result;
         // Parse and load the header
@@ -2364,6 +2385,25 @@ class index_gt {
 #endif
             return node;
         };
+        node_with_id_mut_ = [this, external_node_retriever_mut](size_t index) {
+            byte_t* tape = (byte_t*)external_node_retriever_mut(index);
+            dim_t dim = misaligned_load<dim_t>(tape + sizeof(label_t));
+            level_t level = misaligned_load<level_t>(tape + sizeof(label_t) + sizeof(dim_t));
+
+            std::size_t node_bytes = node_bytes_(dim, level);
+            std::size_t node_vector_bytes = dim * sizeof(scalar_t);
+
+            node_t node = node_t{tape, (scalar_t*)(tape + node_bytes - node_vector_bytes)};
+#ifdef DEBUG_RETRIEVER
+            node_t correct_node = builtin_node_with_id_(index);
+            if (correct_node.tape() != node.tape()) {
+                std::cerr << "node retriever is incorrect. expected tape at addr " << (const void*)correct_node.tape()
+                          << "but got " << (const void*)node.tape() << std::endl;
+                throw std::runtime_error("node retriever is incorrect");
+            }
+#endif
+            return node;
+        };
     }
 
     precomputed_constants_t metadata() { return pre_; }
@@ -2418,13 +2458,21 @@ class index_gt {
     }
 
     node_t node_malloc_(label_t label, vector_view_t vector, level_t level, bool store_vector) noexcept {
+        std::size_t dim = vector.size();
+        std::size_t node_bytes = node_bytes_(static_cast<dim_t>(dim), level) -
+                                 node_vector_bytes_(static_cast<dim_t>(dim)) * std::size_t(!store_vector);
+
+        byte_t* data = (byte_t*)point_allocator_.allocate(node_bytes);
+        return node_init_(data, label, vector, level, store_vector);
+    }
+
+    node_t node_init_(byte_t* data, label_t label, vector_view_t vector, level_t level, bool store_vector) noexcept {
 
         std::size_t dim = vector.size();
         std::size_t stored_vector_bytes = node_vector_bytes_(static_cast<dim_t>(dim)) * std::size_t(store_vector);
         std::size_t node_bytes = node_bytes_(static_cast<dim_t>(dim), level) -
                                  node_vector_bytes_(static_cast<dim_t>(dim)) * std::size_t(!store_vector);
 
-        byte_t* data = (byte_t*)point_allocator_.allocate(node_bytes);
         if (!data)
             return {};
 
@@ -2468,8 +2516,17 @@ class index_gt {
     }
 
     id_t connect_new_node_(id_t new_id, level_t level, context_t& context) usearch_noexcept_m {
+        connect_new_node(node_with_id_mut_(new_id), new_id, level, context);
+    }
 
-        node_t new_node = node_with_id_mut_(new_id);
+    /*
+     * This overload of connect_new_node_ exists to support external node storage
+     * When using external node storage, we need to complete node construction before
+     * it can be externally stored by the caller.
+     * so, we cannot use new_id and obtain node_with_id_(new_id) until after the node is constructed
+     * fortunately, we have access to the the memory tape of the new node and can pass it around
+     */
+    id_t connect_new_node_(node_t new_node, id_t new_id, level_t level, context_t& context) usearch_noexcept_m {
         top_candidates_t& top = context.top_candidates;
         std::size_t const connectivity_max = level ? config_.connectivity : pre_.connectivity_max_base;
 
@@ -2489,9 +2546,12 @@ class index_gt {
         // Reverse links from the neighbors:
         for (id_t close_id : new_neighbors) {
             node_t close_node = node_with_id_mut_(close_id);
-            node_lock_t close_lock = node_lock_(close_id); //--<< remove on inserts
+            node_lock_t close_lock = node_lock_(close_id); //--<< remove on external inserts todo::
 
-            neighbors_ref_t close_header = neighbors_(close_node, level);
+            neighbors_ref_t close_header = neighbors_(close_node, level); // <-- n.b.
+            // ^^^^ N.B.: todo:: node_with_id_mut_ must be modified to make sure that when I modify node_1,
+            // and node_1's neighbor's neighbor is node_1, when I arrive back to node1 with this neighbor chain
+            // I see the modified version and not the committed version
             usearch_assert_m(close_header.size() <= connectivity_max, "Possible corruption");
             usearch_assert_m(close_id != new_id, "Self-loops are impossible");
             usearch_assert_m(level <= close_node.level(), "Linking to missing level");
@@ -2510,7 +2570,9 @@ class index_gt {
             top.insert_reserved({context.measure(new_node, close_node), new_id});
             // add the existing neighbors of close_node to the competition
             for (id_t successor_id : close_header)
-                top.insert_reserved({context.measure(node_with_id_(successor_id), close_node), successor_id});
+                top.insert_reserved(
+                    {context.measure(successor_id == new_id ? new_node : node_with_id_(successor_id), close_node),
+                     successor_id});
 
             // select the closest ones and update close_node neighbors. no other node is changed
             // Export the results:
@@ -2748,6 +2810,30 @@ class index_gt {
         entry_id_ = static_cast<id_t>(state.entry_idx);
         return result;
     }
+
+    serialization_result_t save_index_header(byte_t* headerp) {
+        // todo:: make sure that the index is not in use or is properly locked
+        // when generating the header
+        serialization_result_t result;
+        file_head_t state{headerp};
+        if (state.bytes_per_label != sizeof(label_t)) {
+            reset_view_();
+            return result.failed("Incompatible label type!");
+        }
+        if (state.bytes_per_id != sizeof(id_t)) {
+            reset_view_();
+            return result.failed("Incompatible ID type!");
+        }
+        if (std::strncmp(state.magic, default_magic(), std::strlen(default_magic())) != 0)
+            return result.failed("Wrong MIME type!");
+
+        state.connectivity = config_.connectivity;
+        state.vector_alignment = config_.vector_alignment;
+
+        state.size = size_;
+        state.max_level = max_level_;
+        state.entry_idx = entry_id_;
+        return result;
 };
 
 /**
