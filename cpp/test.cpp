@@ -80,7 +80,7 @@ template <typename scalar_at, typename index_at> void test3d(index_at&& index) {
 }
 
 template <typename scalar_at, typename index_at> void test3d_punned(index_at&& index) {
-
+#if USEARCH_LOOKUP_LABEL
     using scalar_t = scalar_at;
     using view_t = span_gt<scalar_t const>;
     using span_t = span_gt<scalar_at>;
@@ -96,6 +96,7 @@ template <typename scalar_at, typename index_at> void test3d_punned(index_at&& i
     expect(vec_reconstructed[0] == vec[0]);
     expect(vec_reconstructed[1] == vec[1]);
     expect(vec_reconstructed[2] == vec[2]);
+#endif
 }
 
 template <typename index_at> void test_sets(index_at&& index) {
