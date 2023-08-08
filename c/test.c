@@ -204,7 +204,7 @@ void test_save_load(size_t vectors_count, size_t vector_dimension, float const* 
     }
 
     // Save and free the index
-    usearch_save(idx, "usearch_index.bin", &error);
+    usearch_save(idx, "usearch_index.bin", NULL, &error);
     ASSERT(!error, error);
     usearch_free(idx, &error);
     ASSERT(!error, error);
@@ -249,7 +249,7 @@ void test_view(size_t vectors_count, size_t vector_dimension, float const* data)
     }
 
     // Save and free the index
-    usearch_save(idx, "usearch_index.bin", &error);
+    usearch_save(idx, "usearch_index.bin", NULL, &error);
     ASSERT(!error, error);
     usearch_free(idx, &error);
     ASSERT(!error, error);

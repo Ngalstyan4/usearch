@@ -416,7 +416,9 @@ class index_punned_dense_gt {
      *  @param[in] path The path to the file.
      *  @return Outcome descriptor explictly convertable to boolean.
      */
-    serialization_result_t save(char const* path) const { return typed_->save(path); }
+    serialization_result_t save(char const* path, char** usearch_result_buf) const {
+        return typed_->save(path, usearch_result_buf);
+    }
 
     /**
      *  @brief Parses the index from file to RAM.

@@ -65,7 +65,7 @@ USEARCH_EXPORT typedef struct {
 USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t*, usearch_error_t*);
 USEARCH_EXPORT void usearch_free(usearch_index_t, usearch_error_t*);
 
-USEARCH_EXPORT void usearch_save(usearch_index_t, char const* path, usearch_error_t*);
+USEARCH_EXPORT void usearch_save(usearch_index_t, char const* path, char** usearch_result_buf, usearch_error_t*);
 USEARCH_EXPORT void usearch_load(usearch_index_t, char const* path, usearch_error_t*);
 USEARCH_EXPORT void usearch_view(usearch_index_t, char const* path, usearch_error_t*);
 USEARCH_EXPORT void usearch_view_mem(usearch_index_t index, char* data, usearch_error_t* error);

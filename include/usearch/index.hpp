@@ -2427,13 +2427,18 @@ class index_gt {
      *          Available on Linux, MacOS, Windows.
      */
     template <typename progress_at = dummy_progress_t>
-    serialization_result_t save(char const* file_path, progress_at&& progress = {}) const noexcept {
+    serialization_result_t save(char const* file_path, char** usearch_result_buf,
+                                progress_at&& progress = {}) const noexcept {
 
         // Make sure we have right to write to that file
         serialization_result_t result;
-        std::FILE* file = std::fopen(file_path, "wb");
-        if (!file)
-            return result.failed(std::strerror(errno));
+        std::FILE* file = nullptr;
+
+        if (file_path) {
+            file = std::fopen(file_path, "wb");
+            if (!file)
+                return result.failed(std::strerror(errno));
+        }
 
         // Prepare the header with metadata
         file_header_t state_buffer{};
@@ -2471,12 +2476,27 @@ class index_gt {
         state.bytes_for_vectors = vectors_bytes;
         state.bytes_checksum = 0;
 
-        // Perform serialization
+        char* buffer = nullptr;
+        if (usearch_result_buf) {
+            buffer = (char*)malloc(sizeof(file_header_t) + graphs_bytes + vectors_bytes);
+        }
+
+        // perform serialization
+        size_t bytes_copied = 0;
         auto write_chunk = [&](void* begin, std::size_t length) {
-            std::size_t written = std::fwrite(begin, length, 1, file);
-            if (!written) {
-                std::fclose(file);
-                result.failed(std::strerror(errno));
+            if (buffer) {
+                // fill local buffer if usearch_result_buf arg is passed
+                // so in the end we will flush buffer to the usearch_result_buf provided by user
+                std::memcpy(buffer + bytes_copied, begin, length);
+                bytes_copied += length;
+            }
+
+            if (file) {
+                std::size_t written = std::fwrite(begin, length, 1, file);
+                if (!written) {
+                    std::fclose(file);
+                    result.failed(std::strerror(errno));
+                }
             }
         };
 
@@ -2500,7 +2520,14 @@ class index_gt {
             progress(i, state.size);
         }
 
-        std::fclose(file);
+        if (buffer) {
+            *usearch_result_buf = buffer;
+        }
+
+        if (file) {
+            std::fclose(file);
+        }
+
         return {};
     }
 
@@ -2739,7 +2766,7 @@ class index_gt {
      * a mutable pointer)
      */
     void set_node_retriever(node_retriever_t external_node_retriever,
-                                                      node_retriever_t external_node_retriever_mut) noexcept {
+                            node_retriever_t external_node_retriever_mut) noexcept {
         custom_node_retriever_ = true;
 #ifdef DEBUG_RETRIEVER
         debug_node_retriever_ = true;

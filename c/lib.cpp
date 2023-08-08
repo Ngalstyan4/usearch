@@ -120,8 +120,9 @@ USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t* options, use
 
 USEARCH_EXPORT void usearch_free(usearch_index_t index, usearch_error_t*) { delete reinterpret_cast<index_t*>(index); }
 
-USEARCH_EXPORT void usearch_save(usearch_index_t index, char const* path, usearch_error_t* error) {
-    serialization_result_t result = reinterpret_cast<index_t*>(index)->save(path);
+USEARCH_EXPORT void usearch_save(usearch_index_t index, char const* path, char** usearch_result_buf,
+                                 usearch_error_t* error) {
+    serialization_result_t result = reinterpret_cast<index_t*>(index)->save(path, usearch_result_buf);
     if (!result)
         *error = result.error.what();
 }
