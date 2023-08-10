@@ -41,6 +41,11 @@ struct cos_f8_t {
     }
 };
 
+float cos_f8_dist(const f8_bits_t* a, const f8_bits_t* b, size_t dims) {
+    cos_f8_t obj(dims);
+    return obj(a, b);
+};
+
 struct l2sq_f8_t {
     using scalar_t = f8_bits_t;
     std::size_t dimensions;

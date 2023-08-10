@@ -326,4 +326,15 @@ USEARCH_EXPORT void usearch_cast(usearch_scalar_kind_t from, void const* vector,
     default: *error = "Unsupported \"from\" scalar kind."; return;
     }
 }
+
+USEARCH_EXPORT float usearch_cos_dist(float a[], float b[], size_t dims) {
+    // Convert the arguments to f8_bits_t arrays.
+    f8_bits_t* a_array = new f8_bits_t[dims];
+    f8_bits_t* b_array = new f8_bits_t[dims];
+    for (size_t i = 0; i < dims; i++) {
+        a_array[i] = f8_bits_t(a[i]);
+        b_array[i] = f8_bits_t(b[i]);
+    }
+    return cos_f8_dist(a_array, b_array, dims);
+}
 }

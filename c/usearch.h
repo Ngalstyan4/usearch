@@ -111,6 +111,8 @@ USEARCH_EXPORT void usearch_add_external(                                       
 USEARCH_EXPORT void usearch_cast(usearch_scalar_kind_t from, void const* vector, usearch_scalar_kind_t to, void* result,
                                  size_t result_size, int dims, usearch_error_t* error);
 
+USEARCH_EXPORT float usearch_cos_dist(float a[], float b[], size_t dims);
+
 #ifdef __cplusplus
 }
 #endif
