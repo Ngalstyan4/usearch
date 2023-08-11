@@ -326,3 +326,11 @@ USEARCH_EXPORT void usearch_cast(usearch_scalar_kind_t from, void const* vector,
     }
 }
 }
+
+USEARCH_EXPORT float usearch_dist(void const* a, void const* b, usearch_metric_kind_t metric, int dims,
+                                  usearch_scalar_kind_t kind) {
+    index_punned_dense_metric_t m = index_t::make_metric_(to_native_metric(metric), dims, to_native_scalar(kind));
+    punned_vector_view_t av = {reinterpret_cast<byte_t const*>(a), dims * bytes_per_scalar(to_native_scalar(kind))};
+    punned_vector_view_t bv = {reinterpret_cast<byte_t const*>(b), dims * bytes_per_scalar(to_native_scalar(kind))};
+    return m(av, bv);
+}

@@ -750,6 +750,21 @@ class index_punned_dense_gt {
     }
 #endif
 
+    static metric_t make_metric_(metric_kind_t kind, std::size_t dimensions, scalar_kind_t accuracy) {
+        switch (kind) {
+        case metric_kind_t::ip_k: return ip_metric_(dimensions, accuracy);
+        case metric_kind_t::cos_k: return cos_metric_(dimensions, accuracy);
+        case metric_kind_t::l2sq_k: return l2sq_metric_(dimensions, accuracy);
+        case metric_kind_t::pearson_k: return pearson_metric_(accuracy);
+        case metric_kind_t::haversine_k: return haversine_metric_(accuracy);
+        case metric_kind_t::hamming_k: return hamming_gt<b1x8_t>{};
+        case metric_kind_t::jaccard_k: // Equivalent to Tanimoto
+        case metric_kind_t::tanimoto_k: return tanimoto_gt<b1x8_t>{};
+        case metric_kind_t::sorensen_k: return sorensen_gt<b1x8_t>{};
+        default: return {};
+        }
+    }
+
   private:
     struct thread_lock_t {
         index_punned_dense_gt const& parent;
@@ -1061,21 +1076,6 @@ class index_punned_dense_gt {
         case scalar_kind_t::f16_k: return pearson_correlation_gt<f16_t, f32_t>{};
         case scalar_kind_t::f32_k: return pearson_correlation_gt<f32_t>{};
         case scalar_kind_t::f64_k: return pearson_correlation_gt<f64_t>{};
-        default: return {};
-        }
-    }
-
-    static metric_t make_metric_(metric_kind_t kind, std::size_t dimensions, scalar_kind_t accuracy) {
-        switch (kind) {
-        case metric_kind_t::ip_k: return ip_metric_(dimensions, accuracy);
-        case metric_kind_t::cos_k: return cos_metric_(dimensions, accuracy);
-        case metric_kind_t::l2sq_k: return l2sq_metric_(dimensions, accuracy);
-        case metric_kind_t::pearson_k: return pearson_metric_(accuracy);
-        case metric_kind_t::haversine_k: return haversine_metric_(accuracy);
-        case metric_kind_t::hamming_k: return hamming_gt<b1x8_t>{};
-        case metric_kind_t::jaccard_k: // Equivalent to Tanimoto
-        case metric_kind_t::tanimoto_k: return tanimoto_gt<b1x8_t>{};
-        case metric_kind_t::sorensen_k: return sorensen_gt<b1x8_t>{};
         default: return {};
         }
     }
