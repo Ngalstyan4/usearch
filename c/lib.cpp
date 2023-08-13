@@ -114,6 +114,12 @@ USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t* options, use
                 options->dimensions, to_native_metric(options->metric_kind), config,
                 to_native_scalar(options->quantization), options->expansion_add, options->expansion_search);
 
+    if (options->retriever != nullptr || options->retriever_mut != nullptr) {
+        if (options->retriever == nullptr || options->retriever_mut == nullptr) {
+            *error = "External mut and non-mut retrievers must be either both-set or both-null.";
+        }
+        index.set_node_retriever(options->retriever_ctx, options->retriever, options->retriever_mut);
+    }
     index_t* result_ptr = new index_t(std::move(index));
     return result_ptr;
 }
@@ -215,9 +221,9 @@ void usearch_add_external(                                                      
         *error = result.error.what();
 }
 
-void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever,
+void usearch_set_node_retriever(usearch_index_t index, void* retriever_ctx, usearch_node_retriever_t retriever,
                                 usearch_node_retriever_t retriever_mut, usearch_error_t*) {
-    reinterpret_cast<index_t*>(index)->set_node_retriever(retriever, retriever_mut);
+    reinterpret_cast<index_t*>(index)->set_node_retriever(retriever_ctx, retriever, retriever_mut);
 }
 
 #if USEARCH_LOOKUP_LABEL

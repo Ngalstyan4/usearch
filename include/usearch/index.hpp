@@ -2744,7 +2744,7 @@ class index_gt {
 #pragma endregion
 
 #pragma region External Index
-    using node_retriever_t = void* (*)(int index);
+    using node_retriever_t = void* (*)(void* ctx, int index);
     /** @brief The function sets the immutable and mutable getters for externally stored index nodes
      *         The caller must ensure the following properties for each kind of retriever:
      *         Immutable retriever:
@@ -2760,20 +2760,20 @@ class index_gt {
      *            2. The retriever must ensure that when a node is modified, then retrieved again,
      *               the *modified* version is returned and not the committed version.
      *
+     * @param[in] retriever_ctx                 Pointer to context to be passed to the retriever
      * @param[in] external_node_retriever       Pointer to external node retriever (the retriever returns
      * a const pointer)
      * @param[in] external_node_retriever_mut   Pointer to external node retriever (the retriever returns
      * a mutable pointer)
      */
-    void set_node_retriever(node_retriever_t external_node_retriever,
+    void set_node_retriever(void* retriever_ctx, node_retriever_t external_node_retriever,
                             node_retriever_t external_node_retriever_mut) noexcept {
         custom_node_retriever_ = true;
 #ifdef DEBUG_RETRIEVER
         debug_node_retriever_ = true;
 #endif
-
-        node_with_id_ = [this, external_node_retriever](size_t index) {
-            byte_t* tape = (byte_t*)external_node_retriever(index);
+        node_with_id_ = [this, retriever_ctx, external_node_retriever](size_t index) {
+            byte_t* tape = (byte_t*)external_node_retriever(retriever_ctx, index);
             dim_t dim = misaligned_load<dim_t>(tape + sizeof(label_t));
             level_t level = misaligned_load<level_t>(tape + sizeof(label_t) + sizeof(dim_t));
 
@@ -2791,8 +2791,8 @@ class index_gt {
 #endif
             return node;
         };
-        node_with_id_mut_ = [this, external_node_retriever_mut](size_t index) {
-            byte_t* tape = (byte_t*)external_node_retriever_mut(index);
+        node_with_id_mut_ = [this, retriever_ctx, external_node_retriever_mut](size_t index) {
+            byte_t* tape = (byte_t*)external_node_retriever_mut(retriever_ctx, index);
             dim_t dim = misaligned_load<dim_t>(tape + sizeof(label_t));
             level_t level = misaligned_load<level_t>(tape + sizeof(label_t) + sizeof(dim_t));
 

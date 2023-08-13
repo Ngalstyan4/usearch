@@ -19,7 +19,7 @@ USEARCH_EXPORT typedef float usearch_distance_t;
 USEARCH_EXPORT typedef char const* usearch_error_t;
 
 USEARCH_EXPORT typedef usearch_distance_t (*usearch_metric_t)(void const*, void const*);
-USEARCH_EXPORT typedef void* (*usearch_node_retriever_t)(int index);
+USEARCH_EXPORT typedef void* (*usearch_node_retriever_t)(void* ctx, int index);
 
 USEARCH_EXPORT typedef enum usearch_metric_kind_t {
     usearch_metric_ip_k = 0,
@@ -53,6 +53,10 @@ USEARCH_EXPORT typedef struct usearch_init_options_t {
     size_t connectivity;
     size_t expansion_add;
     size_t expansion_search;
+
+    void* retriever_ctx;
+    usearch_node_retriever_t retriever;
+    usearch_node_retriever_t retriever_mut;
 } usearch_init_options_t;
 
 USEARCH_EXPORT typedef struct {
@@ -102,7 +106,8 @@ USEARCH_EXPORT void usearch_remove(usearch_index_t, usearch_label_t, usearch_err
 
 USEARCH_EXPORT int32_t usearch_newnode_level(usearch_index_t index, usearch_error_t* error);
 
-USEARCH_EXPORT void usearch_set_node_retriever(usearch_index_t index, usearch_node_retriever_t retriever,
+USEARCH_EXPORT void usearch_set_node_retriever(usearch_index_t index, void* retriever_ctx,
+                                               usearch_node_retriever_t retriever,
                                                usearch_node_retriever_t retriever_mut, usearch_error_t* error);
 USEARCH_EXPORT void usearch_add_external(                                                                     //
     usearch_index_t index, usearch_label_t label, void const* vector, void* tape, usearch_scalar_kind_t kind, //

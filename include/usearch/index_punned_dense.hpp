@@ -471,8 +471,8 @@ class index_punned_dense_gt {
         return result;
     }
 
-    void set_node_retriever(node_retriever_t node_retriever, node_retriever_t node_retriever_mut) {
-        typed_->set_node_retriever(node_retriever, node_retriever_mut);
+    void set_node_retriever(void* retriever_ctx, node_retriever_t node_retriever, node_retriever_t node_retriever_mut) {
+        typed_->set_node_retriever(retriever_ctx, node_retriever, node_retriever_mut);
     }
 
 #if USEARCH_LOOKUP_LABEL
