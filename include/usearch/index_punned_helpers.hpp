@@ -21,7 +21,7 @@
 #endif
 
 #if !defined(USEARCH_USE_NATIVE_F16)
-#if defined(__AVX512F__)
+#if defined(__Float16)
 #define USEARCH_USE_NATIVE_F16 1
 #elif defined(USEARCH_DEFINED_ARM)
 #define USEARCH_USE_NATIVE_F16 1
@@ -29,8 +29,7 @@
 #define USEARCH_USE_NATIVE_F16 0
 #include <fp16/fp16.h>
 #endif
-#else
-#define USEARCH_USE_NATIVE_F16 0
+#elif !USEARCH_USE_NATIVE_F16
 #include <fp16/fp16.h>
 #endif
 
