@@ -901,6 +901,7 @@ class index_punned_dense_gt {
                       byte_t* tape = nullptr) {
         thread_lock_t lock = thread_lock_();
         add_config_t add_config;
+        add_config.expansion = expansion_add_;
         add_config.thread = lock.thread_id;
         return add_(label, vector, add_config, cast, level, tape);
     }
@@ -911,6 +912,7 @@ class index_punned_dense_gt {
         cast_t const& cast) const {
         thread_lock_t lock = thread_lock_();
         search_config_t search_config;
+        search_config.expansion = expansion_search_;
         search_config.thread = lock.thread_id;
         return search_(vector, wanted, search_config, cast);
     }
