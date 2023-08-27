@@ -899,10 +899,15 @@ class index_punned_dense_gt {
     template <typename scalar_at>
     add_result_t add_(label_t label, scalar_at const* vector, cast_t const& cast, int32_t level = -1,
                       byte_t* tape = nullptr) {
+
+    std::size_t thread_id = 0;
+#if USEARCH_CONCURRENT
         thread_lock_t lock = thread_lock_();
+        thread_id = lock.thread_id;
+#endif
         add_config_t add_config;
         add_config.expansion = expansion_add_;
-        add_config.thread = lock.thread_id;
+        add_config.thread = thread_id;
         return add_(label, vector, add_config, cast, level, tape);
     }
 
@@ -922,7 +927,11 @@ class index_punned_dense_gt {
         index_config_t config, std::size_t expansion_add, std::size_t expansion_search, //
         metric_t metric, casts_t casts, label_t free_label) {
 
+#if USEARCH_CONCURRENT
         std::size_t hardware_threads = std::thread::hardware_concurrency();
+#else
+        std::size_t hardware_threads = 1;
+#endif
         index_punned_dense_gt result;
         result.dimensions_ = dimensions;
         result.scalar_words_ = count_scalar_words_(dimensions, scalar_kind);

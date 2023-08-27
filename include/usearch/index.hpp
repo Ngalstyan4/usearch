@@ -1256,11 +1256,19 @@ struct precomputed_constants_t {
 
 struct index_limits_t {
     std::size_t members = 0;
+#if USEARCH_CONCURRENT
     std::size_t threads_add = std::thread::hardware_concurrency();
     std::size_t threads_search = std::thread::hardware_concurrency();
-
+#else
+    std::size_t threads_add = 1;
+    std::size_t threads_search = 1;
+#endif
     index_limits_t(std::size_t n, std::size_t t) noexcept : members(n), threads_add(t), threads_search(t) {}
+#if USEARCH_CONCURRENT
     index_limits_t(std::size_t n = 0) noexcept : index_limits_t(n, std::thread::hardware_concurrency()) {}
+#else
+    index_limits_t(std::size_t n = 0) noexcept : index_limits_t(n, 1) {}
+#endif
     std::size_t threads() const noexcept { return (std::max)(threads_add, threads_search); }
     std::size_t concurrency() const noexcept { return (std::min)(threads_add, threads_search); }
 };
@@ -1788,6 +1796,7 @@ class index_gt {
 
     index_config_t config_{};
     index_limits_t limits_{};
+
     metric_t metric_{};
     mutable dynamic_allocator_t dynamic_allocator_{};
     tape_allocator_t tape_allocator_{};
@@ -1979,9 +1988,10 @@ class index_gt {
             && limits.threads_search <= limits_.threads_search //
             && limits.members <= limits_.members)
             return true;
-
+#if USEARCH_CONCURRENT
         if (!nodes_mutexes_.resize(limits.members))
             return false;
+#endif
 
         nodes_allocator_t node_allocator;
         node_t* new_nodes = nullptr;
@@ -2207,7 +2217,9 @@ class index_gt {
         }
         result.new_size = old_size + 1;
         result.id = new_id;
+#if USEARCH_CONCURRENT
         node_lock_t new_lock = node_lock_(old_size);
+#endif
 
         // Do nothing for the first element
         if (!new_id) {
@@ -2263,7 +2275,9 @@ class index_gt {
         if (!next.reserve(config.expansion))
             return result.failed("Out of memory!");
 
+#if USEARCH_CONCURRENT
         node_lock_t new_lock = node_lock_(old_id);
+#endif
         node_t node = node_with_id_(old_id);
 
         // Pull stats
@@ -2577,8 +2591,7 @@ class index_gt {
             config_.vector_alignment = state.vector_alignment;
             pre_ = precompute_(config_);
 
-            index_limits_t limits;
-            limits.members = state.size;
+            index_limits_t limits{state.size};
             if (!reserve(limits)) {
                 std::fclose(file);
                 return result.failed("Out of memory");
@@ -3205,6 +3218,7 @@ class index_gt {
         return level ? neighbors_non_base_(node, level) : neighbors_base_(node);
     }
 
+#if USEARCH_CONCURRENT
     struct node_lock_t {
         visits_bitset_t& bitset;
         std::size_t idx;
@@ -3217,6 +3231,7 @@ class index_gt {
             ;
         return {nodes_mutexes_, idx};
     }
+#endif
 
     void connect_node_across_levels_(                           //
         id_t node_id, vector_view_t vector,                     //
@@ -3266,7 +3281,9 @@ class index_gt {
         std::size_t const connectivity_max = level ? config_.connectivity : pre_.connectivity_max_base;
         for (id_t close_id : new_neighbors) {
             node_t close_node = node_with_id_mut_(close_id);
+#if USEARCH_CONCURRENT
             node_lock_t close_lock = node_lock_(close_id); //--<< remove on external inserts todo::
+#endif
 
             neighbors_ref_t close_header = neighbors_(close_node, level);
             usearch_assert_m(close_header.size() <= connectivity_max, "Possible corruption");
@@ -3315,7 +3332,9 @@ class index_gt {
             do {
                 changed = false;
                 node_t closest_node = node_with_id_(closest_id);
+#if USEARCH_CONCURRENT
                 node_lock_t closest_lock = node_lock_(closest_id);
+#endif
                 neighbors_ref_t closest_neighbors = neighbors_non_base_(closest_node, level);
                 for (id_t candidate_id : closest_neighbors) {
                     distance_t candidate_dist = context.measure(query, node_with_id_(candidate_id));
@@ -3363,7 +3382,9 @@ class index_gt {
 
             id_t candidate_id = candidacy.id;
             node_t candidate_ref = node_with_id_(candidate_id);
+#if USEARCH_CONCURRENT
             node_lock_t candidate_lock = node_lock_(candidate_id);
+#endif
             neighbors_ref_t candidate_neighbors = neighbors_(candidate_ref, level);
 
             prefetch_neighbors_(candidate_neighbors, visits);
@@ -3529,9 +3550,7 @@ class index_gt {
         config_.vector_alignment = state.vector_alignment;
         pre_ = precomputed_constants_t(config_);
 
-        index_limits_t limits;
-        limits.members = state.size;
-        limits.threads_add = 0;
+        index_limits_t limits{state.size};
         if (!reserve(limits))
             return result.failed("Out of memory!");
 
