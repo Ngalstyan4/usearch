@@ -162,6 +162,17 @@ template <typename scalar_at> scalar_kind_t common_scalar_kind() noexcept {
     return scalar_kind_t::unknown_k;
 }
 
+uint8_t scalar_size(scalar_kind_t kind) noexcept {
+    switch (kind) {
+    case scalar_kind_t::b1x8_k: return 1;
+    case scalar_kind_t::f8_k: return 8;
+    case scalar_kind_t::f16_k: return 16;
+    case scalar_kind_t::f32_k: return 32;
+    case scalar_kind_t::f64_k: return 64;
+    default: return 0;
+    }
+}
+
 template <typename at> at angle_to_radians(at angle) noexcept { return angle * at(3.14159265358979323846) / at(180); }
 
 template <typename at> at square(at value) noexcept { return value * value; }
@@ -1234,6 +1245,12 @@ struct index_config_t {
     /// to align to SIMD register size for higher performance with
     /// less split-loads.
     std::size_t vector_alignment = 1;
+
+    std::size_t dimensions;
+    std::size_t expansion_add;
+    std::size_t expansion_search;
+    scalar_kind_t accuracy;
+    metric_kind_t metric_kind;
 };
 
 using neighbors_count_t = std::uint32_t;
@@ -1314,7 +1331,7 @@ struct join_config_t {
     bool exact = false;
 };
 
-using file_header_t = byte_t[64];
+using file_header_t = byte_t[80];
 
 /**
  *  @brief  Serialized binary representations of the USearch index start with metadata.
@@ -1333,7 +1350,7 @@ struct file_head_t {
     using version_minor_t = std::uint16_t;
     using version_patch_t = std::uint16_t;
 
-    // Structural: 1 * 6 + 8 * 2 = 22 bytes
+    // Structural: 1 * 6 + 8 * 4 = 38 bytes
     using connectivity_t = std::uint8_t;
     using max_level_t = std::uint8_t;
     using vector_alignment_t = std::uint8_t;
@@ -1341,6 +1358,8 @@ struct file_head_t {
     using bytes_per_id_t = std::uint8_t;
     using size_t = std::uint64_t;
     using entry_idx_t = std::uint64_t;
+    using expansion_search_t = std::uint64_t;
+    using expansion_add_t = std::uint64_t;
 
     // Versioning:
     char const* magic;
@@ -1358,6 +1377,8 @@ struct file_head_t {
     misaligned_ref_gt<scalar_kind_t> scalar_kind;
     misaligned_ref_gt<size_t> size;
     misaligned_ref_gt<entry_idx_t> entry_idx;
+    misaligned_ref_gt<expansion_search_t> expansion_search;
+    misaligned_ref_gt<expansion_add_t> expansion_add;
 
     // Additional:
     misaligned_ref_gt<size_t> bytes_for_graphs;
@@ -1376,7 +1397,9 @@ struct file_head_t {
           bytes_per_id(exchange(ptr, ptr + sizeof(bytes_per_id_t))),
           scalar_kind(exchange(ptr, ptr + sizeof(scalar_kind_t))), size(exchange(ptr, ptr + sizeof(size_t))),
           entry_idx(exchange(ptr, ptr + sizeof(entry_idx_t))), bytes_for_graphs(exchange(ptr, ptr + sizeof(size_t))),
-          bytes_for_vectors(exchange(ptr, ptr + sizeof(size_t))), bytes_checksum(exchange(ptr, ptr + sizeof(size_t))) {}
+          bytes_for_vectors(exchange(ptr, ptr + sizeof(size_t))), bytes_checksum(exchange(ptr, ptr + sizeof(size_t))),
+          expansion_search(exchange(ptr, ptr + sizeof(expansion_search_t))),
+          expansion_add(exchange(ptr, ptr + sizeof(expansion_add_t))) {}
 };
 
 struct file_head_result_t {
@@ -1393,6 +1416,8 @@ struct file_head_result_t {
     using bytes_per_id_t = file_head_t::bytes_per_id_t;
     using size_t = file_head_t::size_t;
     using entry_idx_t = file_head_t::entry_idx_t;
+    using expansion_add_t = file_head_t::expansion_add_t;
+    using expansion_search_t = file_head_t::expansion_search_t;
 
     // Versioning:
     version_major_t version_major;
@@ -1409,6 +1434,8 @@ struct file_head_result_t {
     scalar_kind_t scalar_kind;
     size_t size;
     entry_idx_t entry_idx;
+    expansion_add_t expansion_add;
+    expansion_search_t expansion_search;
 
     // Derived structural:
     size_t connectivity_max_base;
@@ -1429,7 +1456,7 @@ struct file_head_result_t {
     }
 };
 
-static_assert(sizeof(file_header_t) == 64, "File header should be exactly 64 bytes");
+static_assert(sizeof(file_header_t) == 80, "File header should be exactly 80 bytes");
 
 /// @brief  C++17 and newer version deprecate the `std::result_of`
 template <typename metric_at, typename... args_at>
@@ -2441,8 +2468,8 @@ class index_gt {
      *          Available on Linux, MacOS, Windows.
      */
     template <typename progress_at = dummy_progress_t>
-    serialization_result_t save(char const* file_path, char** usearch_result_buf,
-                                progress_at&& progress = {}) const noexcept {
+    serialization_result_t save(char const* file_path, char** usearch_result_buf, uint64_t expansion_search,
+                                uint64_t expansion_add, progress_at&& progress = {}) const noexcept {
 
         // Make sure we have right to write to that file
         serialization_result_t result;
@@ -2475,6 +2502,8 @@ class index_gt {
         state.scalar_kind = metric_.scalar_kind();
         state.size = size_;
         state.entry_idx = entry_id_;
+        state.expansion_search = expansion_search;
+        state.expansion_add = expansion_add;
 
         // Augment with metadata
         std::size_t graphs_bytes = 0;
@@ -2599,6 +2628,11 @@ class index_gt {
             size_ = state.size;
             max_level_ = static_cast<level_t>(state.max_level);
             entry_id_ = static_cast<id_t>(state.entry_idx);
+            config_.dimensions = state.bytes_for_vectors * 8 / state.size / scalar_size(state.scalar_kind);
+            config_.metric_kind = state.metric;
+            config_.accuracy = state.scalar_kind;
+            config_.expansion_search = state.expansion_search;
+            config_.expansion_add = state.expansion_add;
         }
 
         // Load nodes one by one

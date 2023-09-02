@@ -39,6 +39,21 @@ metric_kind_t to_native_metric(usearch_metric_kind_t kind) {
     }
 }
 
+usearch_metric_kind_t to_usearch_metric(metric_kind_t kind) {
+    switch (kind) {
+    case metric_kind_t::ip_k: return usearch_metric_ip_k;
+    case metric_kind_t::l2sq_k: return usearch_metric_l2sq_k;
+    case metric_kind_t::cos_k: return usearch_metric_cos_k;
+    case metric_kind_t::haversine_k: return usearch_metric_haversine_k;
+    case metric_kind_t::pearson_k: return usearch_metric_pearson_k;
+    case metric_kind_t::jaccard_k: return usearch_metric_jaccard_k;
+    case metric_kind_t::hamming_k: return usearch_metric_hamming_k;
+    case metric_kind_t::tanimoto_k: return usearch_metric_tanimoto_k;
+    case metric_kind_t::sorensen_k: return usearch_metric_sorensen_k;
+    default: return usearch_metric_unknown_k;
+    }
+}
+
 scalar_kind_t to_native_scalar(usearch_scalar_kind_t kind) {
     switch (kind) {
     case usearch_scalar_f32_k: return scalar_kind_t::f32_k;
@@ -194,6 +209,18 @@ USEARCH_EXPORT size_t usearch_dimensions(usearch_index_t index, usearch_error_t*
 
 USEARCH_EXPORT size_t usearch_connectivity(usearch_index_t index, usearch_error_t*) {
     return reinterpret_cast<index_t*>(index)->connectivity();
+}
+
+USEARCH_EXPORT size_t usearch_expansion_add(usearch_index_t index, usearch_error_t*) {
+    return reinterpret_cast<index_t*>(index)->expansion_add();
+}
+
+USEARCH_EXPORT size_t usearch_expansion_search(usearch_index_t index, usearch_error_t*) {
+    return reinterpret_cast<index_t*>(index)->expansion_search();
+}
+
+USEARCH_EXPORT usearch_metric_kind_t usearch_metric_kind(usearch_index_t index, usearch_error_t*) {
+    return to_usearch_metric(reinterpret_cast<index_t*>(index)->metric().kind());
 }
 
 USEARCH_EXPORT void usearch_reserve(usearch_index_t index, size_t capacity, usearch_error_t*) {

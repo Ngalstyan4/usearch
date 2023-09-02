@@ -417,7 +417,7 @@ class index_punned_dense_gt {
      *  @return Outcome descriptor explictly convertable to boolean.
      */
     serialization_result_t save(char const* path, char** usearch_result_buf) const {
-        return typed_->save(path, usearch_result_buf);
+        return typed_->save(path, usearch_result_buf, this->expansion_search(), this->expansion_add());
     }
 
     /**
@@ -427,6 +427,12 @@ class index_punned_dense_gt {
      */
     serialization_result_t load(char const* path) {
         serialization_result_t result = typed_->load(path);
+        index_config_t config = typed_->config();
+        metric_t metric = make_metric_(config.metric_kind, config.dimensions, config.accuracy);
+        typed_->change_metric(metric);
+        root_metric_ = metric;
+        this->change_expansion_add(config.expansion_add);
+        this->change_expansion_search(config.expansion_search);
 #if USEARCH_LOOKUP_LABEL
         if (result)
             reindex_labels_();
@@ -900,7 +906,7 @@ class index_punned_dense_gt {
     add_result_t add_(label_t label, scalar_at const* vector, cast_t const& cast, int32_t level = -1,
                       byte_t* tape = nullptr) {
 
-    std::size_t thread_id = 0;
+        std::size_t thread_id = 0;
 #if USEARCH_CONCURRENT
         thread_lock_t lock = thread_lock_();
         thread_id = lock.thread_id;

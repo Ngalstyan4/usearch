@@ -81,6 +81,9 @@ USEARCH_EXPORT size_t usearch_size(usearch_index_t, usearch_error_t*);
 USEARCH_EXPORT size_t usearch_capacity(usearch_index_t, usearch_error_t*);
 USEARCH_EXPORT size_t usearch_dimensions(usearch_index_t, usearch_error_t*);
 USEARCH_EXPORT size_t usearch_connectivity(usearch_index_t, usearch_error_t*);
+USEARCH_EXPORT size_t usearch_expansion_add(usearch_index_t, usearch_error_t*);
+USEARCH_EXPORT size_t usearch_expansion_search(usearch_index_t, usearch_error_t*);
+USEARCH_EXPORT usearch_metric_kind_t usearch_metric_kind(usearch_index_t, usearch_error_t*);
 
 USEARCH_EXPORT void usearch_reserve(usearch_index_t, size_t capacity, usearch_error_t*);
 
