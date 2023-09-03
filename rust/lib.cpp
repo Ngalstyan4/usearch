@@ -58,7 +58,7 @@ size_t Index::connectivity() const { return index_->connectivity(); }
 size_t Index::size() const { return index_->size(); }
 size_t Index::capacity() const { return index_->capacity(); }
 
-void Index::save(rust::Str path) const { index_->save(std::string(path).c_str()); }
+void Index::save(rust::Str path) const { index_->save(std::string(path).c_str(), NULL); }
 void Index::load(rust::Str path) const { index_->load(std::string(path).c_str()); }
 void Index::view(rust::Str path) const { index_->view(std::string(path).c_str()); }
 
