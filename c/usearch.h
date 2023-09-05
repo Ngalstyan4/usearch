@@ -64,6 +64,12 @@ USEARCH_EXPORT typedef struct {
     size_t connectivity_max_base;
     size_t neighbors_bytes;
     size_t neighbors_base_bytes;
+    size_t dimensions;
+    size_t expansion_search;
+    size_t expansion_add;
+    size_t connectivity;
+    usearch_metric_kind_t metric_kind;
+
 } usearch_metadata_t;
 
 USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t*, usearch_error_t*);

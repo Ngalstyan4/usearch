@@ -192,6 +192,12 @@ usearch_metadata_t usearch_metadata(usearch_index_t index, usearch_error_t*) {
     res.connectivity_max_base = pre.connectivity_max_base;
     res.neighbors_bytes = pre.neighbors_bytes;
     res.neighbors_base_bytes = pre.neighbors_base_bytes;
+    res.dimensions = reinterpret_cast<index_t*>(index)->dimensions();
+    res.expansion_add = reinterpret_cast<index_t*>(index)->expansion_add();
+    res.expansion_search = reinterpret_cast<index_t*>(index)->expansion_search();
+    res.connectivity = reinterpret_cast<index_t*>(index)->connectivity();
+    res.metric_kind = to_usearch_metric(reinterpret_cast<index_t*>(index)->metric().kind());
+
     return res;
 }
 
