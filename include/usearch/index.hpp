@@ -10,7 +10,7 @@
 #define UNUM_USEARCH_HPP
 
 #define USEARCH_VERSION_MAJOR 0
-#define USEARCH_VERSION_MINOR 0
+#define USEARCH_VERSION_MINOR 1
 #define USEARCH_VERSION_PATCH 0
 
 // Inferring C++ version
@@ -621,8 +621,8 @@ class error_t {
 #else
     ~error_t() noexcept { raise(); }
     void raise() noexcept {
-        if (message_)
-            std::terminate();
+        // if (message_)
+        //     std::terminate();
     }
 #endif
 };
@@ -2607,6 +2607,16 @@ class index_gt {
                 return result;
 
             file_head_t state{state_buffer};
+            if (std::strncmp(state.magic, default_magic(), std::strlen(default_magic())) != 0) {
+                std::fclose(file);
+                return result.failed("Wrong MIME type!");
+            }
+
+            if (state.version_major != USEARCH_VERSION_MAJOR || state.version_minor != USEARCH_VERSION_MINOR) {
+                std::fclose(file);
+                return result.failed("Incompatible version of index file");
+            }
+
             if (state.bytes_per_label != sizeof(label_t)) {
                 std::fclose(file);
                 return result.failed("Incompatible label type!");

@@ -427,12 +427,14 @@ class index_punned_dense_gt {
      */
     serialization_result_t load(char const* path) {
         serialization_result_t result = typed_->load(path);
-        index_config_t config = typed_->config();
-        metric_t metric = make_metric_(config.metric_kind, config.dimensions, config.accuracy);
-        typed_->change_metric(metric);
-        root_metric_ = metric;
-        this->change_expansion_add(config.expansion_add);
-        this->change_expansion_search(config.expansion_search);
+        if (result) {
+            index_config_t config = typed_->config();
+            metric_t metric = make_metric_(config.metric_kind, config.dimensions, config.accuracy);
+            typed_->change_metric(metric);
+            root_metric_ = metric;
+            this->change_expansion_add(config.expansion_add);
+            this->change_expansion_search(config.expansion_search);
+        }
 #if USEARCH_LOOKUP_LABEL
         if (result)
             reindex_labels_();
