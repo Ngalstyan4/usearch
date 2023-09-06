@@ -144,26 +144,34 @@ USEARCH_EXPORT void usearch_free(usearch_index_t index, usearch_error_t*) { dele
 USEARCH_EXPORT void usearch_save(usearch_index_t index, char const* path, char** usearch_result_buf,
                                  usearch_error_t* error) {
     serialization_result_t result = reinterpret_cast<index_t*>(index)->save(path, usearch_result_buf);
-    if (!result)
+    if (!result) {
         *error = result.error.what();
+        result.error = nullptr;
+    }
 }
 
 USEARCH_EXPORT void usearch_load(usearch_index_t index, char const* path, usearch_error_t* error) {
     serialization_result_t result = reinterpret_cast<index_t*>(index)->load(path);
-    if (!result)
+    if (!result) {
         *error = result.error.what();
+        result.error = nullptr;
+    }
 }
 
 USEARCH_EXPORT void usearch_view(usearch_index_t index, char const* path, usearch_error_t* error) {
     serialization_result_t result = reinterpret_cast<index_t*>(index)->view(path);
-    if (!result)
+    if (!result) {
         *error = result.error.what();
+        result.error = nullptr;
+    }
 }
 
 void usearch_view_mem(usearch_index_t index, char* data, usearch_error_t* error) {
     serialization_result_t result = reinterpret_cast<index_t*>(index)->view_mem(data);
-    if (!result)
+    if (!result) {
         *error = result.error.what();
+        result.error = nullptr;
+    }
 }
 
 void usearch_view_mem_lazy(usearch_index_t index, char* data, usearch_error_t* error) {

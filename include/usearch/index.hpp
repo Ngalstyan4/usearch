@@ -621,8 +621,8 @@ class error_t {
 #else
     ~error_t() noexcept { raise(); }
     void raise() noexcept {
-        // if (message_)
-        //     std::terminate();
+        if (message_)
+            std::terminate();
     }
 #endif
 };
