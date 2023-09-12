@@ -1,6 +1,9 @@
 #pragma once
 #include "rust/cxx.h"
 
+// enable concurrent usearch
+#define USEARCH_CONCURRENT 1
+
 #include <memory> // `std::shared_ptr`
 
 #include <usearch/index_punned_dense.hpp>
