@@ -162,7 +162,7 @@ template <typename scalar_at> scalar_kind_t common_scalar_kind() noexcept {
     return scalar_kind_t::unknown_k;
 }
 
-uint8_t scalar_size(scalar_kind_t kind) noexcept {
+static uint8_t scalar_size(scalar_kind_t kind) noexcept {
     switch (kind) {
     case scalar_kind_t::b1x8_k: return 1;
     case scalar_kind_t::f8_k: return 8;
