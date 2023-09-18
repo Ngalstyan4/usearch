@@ -1,6 +1,6 @@
 #[cxx::bridge]
 pub mod ffi {
-    
+
     // Shared structs with fields visible to both languages.
     struct Matches {
         count: usize,
@@ -52,6 +52,8 @@ pub mod ffi {
         pub fn capacity(self: &Index) -> usize;
 
         pub fn add(self: &Index, label: u64, vector: &[f32]) -> Result<()>;
+        pub fn add_in_thread(self: &Index, label: u64, vector: &[f32], thread: usize)
+            -> Result<()>;
         pub fn search(self: &Index, query: &[f32], count: usize) -> Result<Matches>;
 
         pub fn save(self: &Index, path: &str) -> Result<()>;
@@ -60,50 +62,48 @@ pub mod ffi {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use crate::ffi::new_index;
+    use crate::ffi::IndexOptions;
     use crate::ffi::MetricKind;
     use crate::ffi::ScalarKind;
-    use crate::ffi::IndexOptions;
-    use crate::ffi::new_index;
 
     #[test]
     fn integration() {
-
         let mut options = IndexOptions {
             dimensions: 5,
             metric: MetricKind::IP,
             quantization: ScalarKind::F16,
             connectivity: 0,
             expansion_add: 0,
-            expansion_search: 0
+            expansion_search: 0,
         };
 
         let index = new_index(&options).unwrap();
-    
+
         assert!(index.reserve(10).is_ok());
         assert!(index.capacity() >= 10);
         assert!(index.connectivity() != 0);
         assert_eq!(index.dimensions(), 5);
         assert_eq!(index.size(), 0);
-    
+
         let first: [f32; 5] = [0.2, 0.1, 0.2, 0.1, 0.3];
         let second: [f32; 5] = [0.2, 0.1, 0.2, 0.1, 0.3];
-    
+
         assert!(index.add(42, &first).is_ok());
         assert!(index.add(43, &second).is_ok());
         assert_eq!(index.size(), 2);
-    
+
         // Read back the tags
         let results = index.search(&first, 10).unwrap();
         assert_eq!(results.count, 2);
-    
+
         // Validate serialization
         assert!(index.save("index.rust.usearch").is_ok());
         assert!(index.load("index.rust.usearch").is_ok());
         assert!(index.view("index.rust.usearch").is_ok());
-    
+
         // Make sure every function is called at least once
         assert!(new_index(&options).is_ok());
         options.metric = MetricKind::L2Sq;
@@ -114,3 +114,4 @@ mod tests {
         assert!(new_index(&options).is_ok());
     }
 }
+
