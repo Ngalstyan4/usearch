@@ -64,7 +64,10 @@ set(USEARCH_PUNNED_INCLUDE_DIRS
 # This article discusses a better way to allow building either static or shared libraries
 # https://alexreinking.com/blog/building-a-dual-shared-and-static-library-with-cmake.html
 if (${USEARCH_BUILD_STATIC})
-    set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -static-libstdc++")
+    # apples does not understand -static-libstdc++ and cmake throws unused flag warning
+    if (NOT APPLE)
+        set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -static-libstdc++")
+    endif()
     add_library(usearch_c STATIC lib.cpp)
 else ()
     add_library(usearch_c SHARED lib.cpp)
