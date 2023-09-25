@@ -620,12 +620,6 @@ class index_punned_dense_gt {
             *labels = it->first;
     }
 #endif
-    int32_t newnode_level() {
-        thread_lock_t lock = thread_lock_();
-        add_config_t add_config;
-        add_config.thread = lock.thread_id;
-        return typed_->choose_random_level(add_config);
-    }
 
     /**
      *  @brief  Adapts the Male-Optimal Stable Marriage algorithm for unequal sets

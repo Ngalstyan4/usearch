@@ -2174,17 +2174,6 @@ class index_gt {
     };
 
     /**
-     *  @brief Generate a random level for a new externally stored vector. Thread-safe.
-     *
-     *  @param[in] config Configuration options for this specific operation.
-     * @return The level to use for the new vector add operation.
-     */
-    level_t choose_random_level(add_config_t config) {
-        context_t& context = contexts_[config.thread];
-        return choose_random_level_(context.level_generator);
-    }
-
-    /**
      *  @brief Inserts a new vector into the index. Thread-safe.
      *
      *  @param[in] label External identifier/name/descriptor for the vector.

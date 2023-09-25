@@ -250,10 +250,6 @@ USEARCH_EXPORT void usearch_add(                                                
         *error = result.error.what();
 }
 
-int32_t usearch_newnode_level(usearch_index_t index, usearch_error_t*) {
-    return reinterpret_cast<index_t*>(index)->newnode_level();
-}
-
 void usearch_add_external(                                                                                    //
     usearch_index_t index, usearch_label_t label, void const* vector, void* tape, usearch_scalar_kind_t kind, //
     int32_t level, usearch_error_t* error) {

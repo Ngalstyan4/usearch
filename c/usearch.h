@@ -12,7 +12,7 @@ extern "C" {
 
 USEARCH_EXPORT typedef void* usearch_index_t;
 // let this be larger, before I make it truly configurable
-// lanterndb assumes this is at least 48 bits
+// lantern assumes this is at least 48 bits
 // todo:: make this configurable
 USEARCH_EXPORT typedef uint64_t usearch_label_t;
 USEARCH_EXPORT typedef float usearch_distance_t;
