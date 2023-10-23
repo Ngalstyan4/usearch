@@ -90,7 +90,18 @@ bool get_(index_t* index, label_t label, void* vector, scalar_kind_t kind) {
 }
 #endif
 
-search_result_t search_(index_t* index, void const* vector, scalar_kind_t kind, size_t n) {
+search_result_t custom_ef_search_(index_t* index, void const* vector, scalar_kind_t kind, size_t n, size_t ef = 0) {
+    switch (kind) {
+    case scalar_kind_t::f32_k: return index->custom_ef_search((f32_t const*)vector, n, ef);
+    case scalar_kind_t::f64_k: return index->custom_ef_search((f64_t const*)vector, n, ef);
+    case scalar_kind_t::f16_k: return index->custom_ef_search((f16_t const*)vector, n, ef);
+    case scalar_kind_t::f8_k: return index->custom_ef_search((f8_bits_t const*)vector, n, ef);
+    case scalar_kind_t::b1x8_k: return index->custom_ef_search((b1x8_t const*)vector, n, ef);
+    default: return index->empty_search_result().failed("Unknown scalar kind!");
+    }
+}
+
+search_result_t search_(index_t* index, void const* vector, scalar_kind_t kind, size_t n, size_t ef = 0) {
     switch (kind) {
     case scalar_kind_t::f32_k: return index->search((f32_t const*)vector, n);
     case scalar_kind_t::f64_k: return index->search((f64_t const*)vector, n);
@@ -269,16 +280,28 @@ USEARCH_EXPORT bool usearch_contains(usearch_index_t index, usearch_label_t labe
 }
 #endif
 
-USEARCH_EXPORT size_t usearch_search(                                                            //
-    usearch_index_t index, void const* vector, usearch_scalar_kind_t kind, size_t results_limit, //
+USEARCH_EXPORT size_t usearch_search(                                                                       //
+    usearch_index_t index, void const* vector, usearch_scalar_kind_t kind, size_t results_limit, size_t ef, //
     usearch_label_t* found_labels, usearch_distance_t* found_distances, usearch_error_t* error) {
-    search_result_t result = search_(reinterpret_cast<index_t*>(index), vector, to_native_scalar(kind), results_limit);
-    if (!result) {
-        *error = result.error.what();
-        return 0;
+    if (ef == USEARCH_SEARCH_EF_INVALID_VALUE) {
+        // use the ef already stored in the index for the search
+        search_result_t result =
+            search_(reinterpret_cast<index_t*>(index), vector, to_native_scalar(kind), results_limit);
+        if (!result) {
+            *error = result.error.what();
+            return 0;
+        }
+        return result.dump_to(found_labels, found_distances);
+    } else {
+        // use the ef passed here during the search
+        search_result_t result =
+            custom_ef_search_(reinterpret_cast<index_t*>(index), vector, to_native_scalar(kind), results_limit, ef);
+        if (!result) {
+            *error = result.error.what();
+            return 0;
+        }
+        return result.dump_to(found_labels, found_distances);
     }
-
-    return result.dump_to(found_labels, found_distances);
 }
 
 #if USEARCH_LOOKUP_LABEL

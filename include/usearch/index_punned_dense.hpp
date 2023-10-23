@@ -361,6 +361,12 @@ class index_punned_dense_gt {
     add_result_t add(label_t label, f32_t const* vector, add_config_t config) { return add_(label, vector, config, casts_.from_f32); }
     add_result_t add(label_t label, f64_t const* vector, add_config_t config) { return add_(label, vector, config, casts_.from_f64); }
 
+    search_result_t custom_ef_search(b1x8_t const* vector, std::size_t wanted, std::size_t ef) const { return custom_ef_search_(vector, wanted, ef, casts_.from_b1x8); }
+    search_result_t custom_ef_search(f8_bits_t const* vector, std::size_t wanted, std::size_t ef) const { return custom_ef_search_(vector, wanted, ef, casts_.from_f8); }
+    search_result_t custom_ef_search(f16_t const* vector, std::size_t wanted, std::size_t ef) const { return custom_ef_search_(vector, wanted, ef, casts_.from_f16); }
+    search_result_t custom_ef_search(f32_t const* vector, std::size_t wanted, std::size_t ef) const { return custom_ef_search_(vector, wanted, ef, casts_.from_f32); }
+    search_result_t custom_ef_search(f64_t const* vector, std::size_t wanted, std::size_t ef) const { return custom_ef_search_(vector, wanted, ef, casts_.from_f64); }
+
     search_result_t search(b1x8_t const* vector, std::size_t wanted) const { return search_(vector, wanted, casts_.from_b1x8); }
     search_result_t search(f8_bits_t const* vector, std::size_t wanted) const { return search_(vector, wanted, casts_.from_f8); }
     search_result_t search(f16_t const* vector, std::size_t wanted) const { return search_(vector, wanted, casts_.from_f16); }
@@ -911,6 +917,17 @@ class index_punned_dense_gt {
         add_config.expansion = expansion_add_;
         add_config.thread = thread_id;
         return add_(label, vector, add_config, cast, level, tape);
+    }
+
+    template <typename scalar_at>
+    search_result_t custom_ef_search_(                         //
+        scalar_at const* vector, std::size_t wanted, std::size_t ef, //
+        cast_t const& cast) const {
+        thread_lock_t lock = thread_lock_();
+        search_config_t search_config;
+        search_config.expansion = ef;
+        search_config.thread = lock.thread_id;
+        return search_(vector, wanted, search_config, cast);
     }
 
     template <typename scalar_at>
