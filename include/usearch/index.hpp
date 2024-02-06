@@ -87,6 +87,9 @@
 #include <thread>    // `std::thread`
 #include <utility>   // `std::pair`
 
+extern "C" {
+#include "bench.h"
+}
 // Prefetching
 #if defined(USEARCH_DEFINED_GCC)
 // https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
@@ -2382,10 +2385,10 @@ class index_gt {
         result.computed_distances = context.computed_distances_count;
         result.visited_members = context.iteration_cycles;
 
-        connect_node_across_levels_(                                //
-            value, metric, prefetch,                                //
-            new_slot, entry_idx_copy, max_level_copy, target_level, //
-            config, context);
+        LanternBench("connect_across_levels", connect_node_across_levels_(                                //
+                                                  value, metric, prefetch,                                //
+                                                  new_slot, entry_idx_copy, max_level_copy, target_level, //
+                                                  config, context));
 
         // Normalize stats
         result.computed_distances = context.computed_distances_count - result.computed_distances;
@@ -2961,16 +2964,25 @@ class index_gt {
         index_update_config_t const& config, context_t& context) usearch_noexcept_m {
 
         // Go down the level, tracking only the closest match
-        std::size_t closest_slot = search_for_one_( //
-            value, metric, prefetch,                //
-            entry_slot, max_level, target_level, context);
+        size_t closest_slot;
+        LanternBench("search_for_one", {
+            closest_slot = search_for_one_( //
+                value, metric, prefetch,    //
+                entry_slot, max_level, target_level, context);
+        });
 
         // From `target_level` down perform proper extensive search
         for (level_t level = (std::min)(target_level, max_level); level >= 0; --level) {
             // TODO: Handle out of memory conditions
-            search_to_insert_(value, metric, prefetch, closest_slot, node_slot, level, config.expansion, context);
-            closest_slot = connect_new_node_(metric, node_slot, level, context);
-            reconnect_neighbor_nodes_(metric, node_slot, value, level, context);
+            LanternBench("search_to_insert", { //
+                search_to_insert_(value, metric, prefetch, closest_slot, node_slot, level, config.expansion, context);
+            });
+            LanternBench("connect_new_node", { //
+                closest_slot = connect_new_node_(metric, node_slot, level, context);
+            });
+            LanternBench("reconnect_neighbor_nodes", { //
+                reconnect_neighbor_nodes_(metric, node_slot, value, level, context);
+            });
         }
     }
 
