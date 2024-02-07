@@ -54,7 +54,6 @@ class lantern_storage_gt {
     using vectors_t = std::vector<span_bytes_t>;
 
     nodes_t nodes_{};
-    vectors_t vectors_{};
     mutable nodes_mutexes_t nodes_mutexes_{};
 
     node_retriever_t external_node_retriever_{};
@@ -131,7 +130,7 @@ class lantern_storage_gt {
             return tape + node.node_size_bytes(pre_);
         }
 
-        return vectors_[idx].data();
+        return nodes_[idx].tape() + nodes_[idx].node_size_bytes(pre_);
     }
     inline size_t node_size_bytes(std::size_t idx) const noexcept { return get_node_at(idx).node_size_bytes(pre_); }
     bool is_immutable() const noexcept { return bool(viewed_file_); }
@@ -173,11 +172,10 @@ class lantern_storage_gt {
         if (!new_mutexes || !new_nodes)
             return false;
         if (nodes_)
-            std::memcpy(new_nodes.data(), nodes_.data(), sizeof(node_t) * nodes_.size());
+            std::memcpy(new_nodes.data(), nodes_.data(), (sizeof(node_t) + 4 * 128) * nodes_.size());
 
         nodes_mutexes_ = std::move(new_mutexes);
         nodes_ = std::move(new_nodes);
-        vectors_.resize(count);
 
         return true;
     }
@@ -190,16 +188,7 @@ class lantern_storage_gt {
                 if (nodes_[i])
                     node_free(i, nodes_[i]);
             }
-            n = vectors_.size();
-            for (std::size_t i = 0; i != n; ++i) {
-                span_bytes_t v = vectors_[i];
-                if (v.data()) {
-                    allocator_.deallocate(v.data(), v.size());
-                }
-            }
         }
-        if (vectors_.data())
-            std::fill(vectors_.begin(), vectors_.end(), span_bytes_t{});
         if (nodes_.data())
             std::fill(nodes_.begin(), nodes_.end(), node_t{});
     }
@@ -207,11 +196,11 @@ class lantern_storage_gt {
 
     span_bytes_t node_malloc(level_t level) noexcept {
         std::size_t node_size = node_t::node_size_bytes(pre_, level);
-        byte_t* data = (byte_t*)allocator_.allocate(node_size);
+        byte_t* data = (byte_t*)allocator_.allocate(node_size + 4 * 128);
         return data ? span_bytes_t{data, node_size} : span_bytes_t{};
     }
     void node_free(size_t slot, node_t node) {
-        allocator_.deallocate(node.tape(), node.node_size_bytes(pre_));
+        allocator_.deallocate(node.tape(), 4 * 128 + node.node_size_bytes(pre_));
         nodes_[slot] = node_t{};
     }
     node_t node_make(key_at key, level_t level) noexcept {
@@ -238,12 +227,9 @@ class lantern_storage_gt {
 
         usearch_assert_m(!(reuse_node && !copy_vector),
                          "Cannot reuse node when not copying as there is no allocation needed");
-        if (copy_vector) {
-            if (!reuse_node)
-                vectors_[slot] = span_bytes_t{allocator_.allocate(vector_size), vector_size};
-            std::memcpy(vectors_[slot].data(), vector_data, vector_size);
-        } else
-            vectors_[slot] = span_bytes_t{(byte_t*)vector_data, vector_size};
+        usearch_assert_m(copy_vector, "non-copy vectors not supported in lantern storage");
+        byte_t* head = nodes_[slot].tape() + nodes_[slot].node_size_bytes(pre_);
+        std::memcpy(head, vector_data, vector_size);
     }
 
     allocator_at const& node_allocator() const noexcept { return allocator_; }
