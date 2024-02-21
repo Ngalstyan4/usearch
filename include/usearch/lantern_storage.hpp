@@ -80,26 +80,17 @@ class lantern_storage_gt {
         size_t dimensions_{};
         size_t subvector_dim_{};
         size_t num_centroids_{};
-        // used in multicore settings and configured to 2x hardware concurrency
-        // the assumption is that not more than that many vectors will be used by the caller
-        // bad things happen if the assumption is broken (vectors overriding other vectors)
-        // so better design is necessary - this jus was faster to get out
-        mutable std::vector<float> decompress_buffers_{};
-        mutable size_t decompress_buffers_next_offset{};
-        // pointer to mutex - hack to make storage move constructable
-        mutable std::mutex* decompress_buffers_lock_{};
 
       public:
         codebook_t() = default;
         codebook_t(const float* tape, size_t dimensions, size_t num_centroids, size_t num_subvectors)
-            : tape_(tape), dimensions_(dimensions), num_centroids_(num_centroids) {
-            subvector_dim_ = dimensions / num_subvectors;
+            : tape_(tape), dimensions_(dimensions), num_centroids_(num_centroids),
+              subvector_dim_(dimensions / num_subvectors) {
             expect(tape != nullptr);
             expect(dimensions % num_subvectors == 0, "currently vector dimensions must be divisible to num_subvectors");
             expect(dimensions_ < 2000, "vectors larger than 2k dimensions not supported");
             expect(num_centroids <= 256, "number of centroids must fit in a byte");
             expect(num_centroids > 0 && num_subvectors > 0, "subvector and centroid counts must be larger than zero");
-            decompress_buffers_lock_ = new std::mutex();
         }
 
         size_t num_subvectors() const { return dimensions_ / subvector_dim_; }
@@ -121,7 +112,7 @@ class lantern_storage_gt {
             expect(tape_ != nullptr, "compress called on uninitialized codebook");
             expect(num_centroids_ <= 256, "num centroids must fit in a byte");
             std::vector<byte_t> quantized;
-            quantized.reserve(std::ceil(dimensions_ / subvector_dim_));
+            quantized.reserve(num_subvectors());
 
             for (size_t i = 0, id = 0; i < dimensions_; i += subvector_dim_, id++) {
                 const span_floats_t subvector{vector + i, subvector_dim_};
@@ -235,7 +226,6 @@ class lantern_storage_gt {
     }
 
     inline node_t get_node_at(std::size_t idx) const noexcept {
-        // std::cerr << "getting node at" << std::to_string(idx) << std::endl;
         if (loaded_ && is_external_ak) {
             assert(retriever_ctx_ != nullptr);
             char* tape = (char*)external_node_retriever_(retriever_ctx_, idx);
@@ -427,9 +417,6 @@ class lantern_storage_gt {
             } else {
                 std::memcpy(vectors_[slot].data(), vector_data, vector_size);
             }
-
-            // std::cerr << "the 2 chars after vector: " << std::to_string(*(char*)(vector_data + vector_size)) << " "
-            //           << std::to_string(*(char*)(vector_data + vector_size + 1)) << std::endl;
         } else {
             if (pq_) {
                 // cannot avoid copy when doing pq quantization
@@ -498,8 +485,6 @@ class lantern_storage_gt {
                 expect(output(&padding_buffer, padding_size));
                 file_offset_ += padding_size;
                 span_bytes_t vector_span = pq_ ? vectors_pq_[i] : vectors_[i];
-                if (pq_) {
-                }
 
                 expect(output(vector_span.data(), vector_span.size()));
                 file_offset_ += vector_span.size();
@@ -535,9 +520,8 @@ class lantern_storage_gt {
             return {};
         byte_t in_padding_buffer[64] = {0};
 
-        if (pq_) {
-            expect(false);
-        }
+        // can support this once we start storing the codebook in the file header
+        expect(!pq_);
         expect(reserve(header.size));
 
         // N.B: unlike upstream usearch storage, lantern storage does not save level info of all nodes as part of the
