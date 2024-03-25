@@ -215,7 +215,11 @@ using timestamp_t = std::chrono::time_point<std::chrono::high_resolution_clock>;
 struct running_stats_printer_t {
     std::size_t total{};
     std::atomic<std::size_t> progress{};
+    std::atomic<std::size_t> comparisons{};
+    std::atomic<std::size_t> visited_members{};
     std::size_t last_printed_progress{};
+    std::size_t last_printed_comparisons{};
+    std::size_t last_visited_members{};
     timestamp_t last_printed_time{};
     timestamp_t start_time{};
 
@@ -227,10 +231,15 @@ struct running_stats_printer_t {
 
     ~running_stats_printer_t() {
         std::size_t count = progress.load();
+        std::size_t final_comparisons = comparisons.load();
+        std::size_t final_visited_members = visited_members.load();
         timestamp_t time = std::chrono::high_resolution_clock::now();
         std::size_t duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time - start_time).count();
         float vectors_per_second = count * 1e9 / duration;
-        std::printf("\r\33[2K100 %% completed, %.0f vectors/s\n", vectors_per_second);
+        float comparisons_per_second = final_comparisons * 1e9 / duration / 1e6;
+        std::printf("\r\33[2K100 %% completed, %.0f vectors/s, %.2fM comparisons/s (%fM total comparisons),"
+                    " %zu visits/query \n",
+                    vectors_per_second, comparisons_per_second, final_comparisons / 1e6, final_visited_members / count);
     }
 
     void refresh(std::size_t step = 1024 * 32) {
@@ -250,16 +259,25 @@ struct running_stats_printer_t {
         int right_pad = bars_len_k - left_pad;
 
         std::size_t count_new = progress - last_printed_progress;
+        std::size_t comparisons_copy = comparisons.load();
+        std::size_t visits_copy = visited_members.load();
+        std::size_t comparisons_new = comparisons_copy - last_printed_comparisons;
+        std::size_t visits_new = visits_copy - last_visited_members;
         timestamp_t time_new = std::chrono::high_resolution_clock::now();
         std::size_t duration =
             std::chrono::duration_cast<std::chrono::nanoseconds>(time_new - last_printed_time).count();
         float vectors_per_second = count_new * 1e9 / duration;
+        float comparisons_per_second = comparisons_new * 1e9 / duration / 1e6;
+        size_t visits_per_search = visits_new / count_new;
 
-        std::printf("\r%3.3f%% [%.*s%*s] %.0f vectors/s, finished %zu/%zu", percentage * 100.f, left_pad, bars_k,
-                    right_pad, "", vectors_per_second, progress, total);
+        std::printf("\r%3.3f%% [%.*s%*s] %.0f vectors/s, %.2fM comparisons/s, %zu visits/query finished %zu/%zu",
+                    percentage * 100.f, left_pad, bars_k, right_pad, "", vectors_per_second, comparisons_per_second,
+                    visits_per_search, progress, total);
         std::fflush(stdout);
 
         last_printed_progress = progress;
+        last_printed_comparisons = comparisons_copy;
+        last_visited_members = visits_copy;
         last_printed_time = time_new;
         this->total = total;
     }
@@ -279,8 +297,10 @@ void index_many(index_at& index, std::size_t n, vector_id_at const* ids, real_at
         config.thread = omp_get_thread_num();
 #endif
         float_span_t vector{vectors + dims * i, dims};
-        index.add(ids[i], vector, config.thread);
+        typename index_at::add_result_t res = index.add(ids[i], vector, config.thread);
         printer.progress++;
+        printer.comparisons += res.computed_distances;
+        printer.visited_members += res.visited_members;
         if (config.thread == 0)
             printer.refresh();
     }
@@ -303,7 +323,11 @@ void search_many( //
         config.thread = omp_get_thread_num();
 #endif
         float_span_t vector{vectors + dims * i, dims};
-        index.search(vector, wanted, config.thread).dump_to(ids + wanted * i, distances + wanted * i);
+        typename index_at::search_result_t res = index.search(vector, wanted, config.thread);
+        printer.comparisons += res.computed_distances;
+        printer.visited_members += res.visited_members;
+
+        res.dump_to(ids + wanted * i, distances + wanted * i);
         printer.progress++;
         if (config.thread == 0)
             printer.refresh();
@@ -402,6 +426,8 @@ struct args_t {
     bool help = false;
 
     bool big = false;
+
+    bool skip_pruned = false;
 
     bool pq = false;
     std::size_t num_centroids = 250;
@@ -525,6 +551,7 @@ int main(int argc, char** argv) {
         (option("--queries") & value("path", args.path_queries)).doc(".fbin file path to query the index"),
         (option("--neighbors") & value("path", args.path_neighbors)).doc(".ibin file path with ground truth"),
         (option("-o", "--output") & value("path", args.path_output)).doc(".usearch output file path"),
+        (option("--skip-pruned").set(args.skip_pruned)).doc("Do not add pruned candidates to vacant neighbor slots"),
         (option("-b", "--big").set(args.big)).doc("Will switch to uint40_t for neighbors lists with over 4B entries"),
         (option("--pq").set(args.pq)).doc("Create a product-quantized (PQ) index"),
         (option("--num_subvectors") & value("integer", args.num_subvectors)).doc("Number of subvectors for PQ"),
@@ -596,6 +623,11 @@ int main(int argc, char** argv) {
     std::printf("-- Connectivity: %zu\n", config.connectivity);
     std::printf("-- Expansion @ Add: %zu\n", config.expansion_add);
     std::printf("-- Expansion @ Search: %zu\n", config.expansion_search);
+
+    if (args.skip_pruned) {
+        std::printf("-- Skip pruned: true\n");
+        config.keep_pruned = false;
+    }
 
     if (args.big)
 #ifdef USEARCH_64BIT_ENV
