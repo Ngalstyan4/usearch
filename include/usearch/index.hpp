@@ -1135,6 +1135,15 @@ struct index_config_t {
     /// > It is called `M0` in the paper.
     std::size_t connectivity_base = default_connectivity() * 2;
 
+    /// @brief When inserting a new node into the graph, usearch uses
+    /// a heuristic to select the best neighbors for the new node.
+    /// The heuristic prunes passed neighbor candidates and returns a subset of it
+    /// The heuristic may result in a node having less than "connectivity" neighbors, even
+    /// when there are more than "connectivity" candidates
+    /// when keep_pruned is set to true, the neighbor list of the heuristic is augmented
+    /// with some of the pruned neighbors to fill as many of node neighbor slots as possible
+    bool keep_pruned = true;
+
     inline index_config_t() = default;
     inline index_config_t(std::size_t c) noexcept
         : connectivity(c ? c : default_connectivity()), connectivity_base(c ? c * 2 : default_connectivity() * 2) {}
@@ -3372,14 +3381,24 @@ class index_gt {
             }
 
             if (good) {
-                top_data[submitted_count] = top_data[consumed_count];
+                if (config_.keep_pruned) {
+                    std::swap(top_data[submitted_count], top_data[consumed_count]);
+                } else {
+                    // q:: this breaks the sorted_buffer data structure invariant, no?
+                    top_data[submitted_count] = top_data[consumed_count];
+                }
                 submitted_count++;
             }
             consumed_count++;
         }
 
-        top.shrink(submitted_count);
-        return {top_data, submitted_count};
+        if (config_.keep_pruned) {
+            top.shrink(std::max(submitted_count, needed));
+        } else {
+            top.shrink(submitted_count);
+        }
+
+        return {top_data, top.size()};
     }
 };
 
