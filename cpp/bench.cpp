@@ -626,7 +626,7 @@ int main(int argc, char** argv) {
 
     if (args.skip_pruned) {
         std::printf("-- Skip pruned: true\n");
-        config.keep_pruned = false;
+        config.skip_pruned_connections = true;
     }
 
     if (args.big)

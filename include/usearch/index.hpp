@@ -1142,7 +1142,7 @@ struct index_config_t {
     /// when there are more than "connectivity" candidates
     /// when keep_pruned is set to true, the neighbor list of the heuristic is augmented
     /// with some of the pruned neighbors to fill as many of node neighbor slots as possible
-    bool keep_pruned = true;
+    bool skip_pruned_connections = false;
 
     inline index_config_t() = default;
     inline index_config_t(std::size_t c) noexcept
@@ -3381,7 +3381,7 @@ class index_gt {
             }
 
             if (good) {
-                if (config_.keep_pruned) {
+                if (config_.skip_pruned_connections) {
                     std::swap(top_data[submitted_count], top_data[consumed_count]);
                 } else {
                     // q:: this breaks the sorted_buffer data structure invariant, no?
@@ -3392,10 +3392,10 @@ class index_gt {
             consumed_count++;
         }
 
-        if (config_.keep_pruned) {
-            top.shrink(std::max(submitted_count, needed));
-        } else {
+        if (config_.skip_pruned_connections) {
             top.shrink(submitted_count);
+        } else {
+            top.shrink(std::max(submitted_count, needed));
         }
 
         return {top_data, top.size()};
