@@ -67,6 +67,9 @@ USEARCH_EXPORT typedef enum usearch_scalar_kind_t {
     usearch_scalar_b1_k,
 } usearch_scalar_kind_t;
 
+USEARCH_EXPORT typedef void* (*usearch_alloc_func)(size_t);
+USEARCH_EXPORT typedef void (*usearch_free_func)(void *);
+
 USEARCH_EXPORT typedef struct usearch_init_options_t {
     /**
      *  @brief The metric kind used for distance calculation between vectors.
@@ -110,6 +113,8 @@ USEARCH_EXPORT typedef struct usearch_init_options_t {
     bool pq;
     size_t num_centroids;
     size_t num_subvectors;
+    usearch_alloc_func alloc_func;
+    usearch_free_func free_func;
 } usearch_init_options_t;
 
 USEARCH_EXPORT typedef struct {

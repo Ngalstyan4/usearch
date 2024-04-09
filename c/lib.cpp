@@ -19,7 +19,8 @@ using lantern_storage_t = lantern_external_storage_t;
 #else
 using lantern_storage_t = lantern_internal_storage_t;
 #endif
-using index_dense_t = index_dense_gt<default_key_t, default_slot_t, lantern_storage_t>;
+using custom_allocator_t = custom_allocator_gt<byte_t>;
+using index_dense_t = index_dense_gt<default_key_t, default_slot_t, lantern_storage_t, custom_allocator_t>;
 
 using add_result_t = typename index_dense_t::add_result_t;
 using search_result_t = typename index_dense_t::search_result_t;
@@ -145,6 +146,7 @@ USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t* options, flo
     opts.num_centroids = options->num_centroids;
     opts.num_subvectors = options->num_subvectors;
     opts.scalar_bytes = bits_per_scalar(scalar_kind) / 8;
+    index_dense_t::dynamic_allocator_t(options->alloc_func, options->free_func);
     index_dense_t index = index_dense_t::make(metric, opts, options->num_threads, config, codebook);
 
     if (options->retriever != nullptr || options->retriever_mut != nullptr) {

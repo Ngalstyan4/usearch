@@ -18,7 +18,7 @@
 namespace unum {
 namespace usearch {
 
-template <typename, typename, typename> class index_dense_gt;
+template <typename, typename, typename, typename> class index_dense_gt;
 
 /**
  *  @brief  The "magic" sequence helps infer the type of the file.
@@ -294,7 +294,8 @@ inline index_dense_metadata_result_t index_dense_metadata_from_buffer(memory_map
  */
 template <typename key_at = default_key_t,                                 //
           typename compressed_slot_at = default_slot_t,                    //
-          typename storage_at = storage_v2_at<key_at, compressed_slot_at>> //
+          typename storage_at = storage_v2_at<key_at, compressed_slot_at>,
+          typename dynamic_allocator_at = std::allocator<byte_t>> //
 class index_dense_gt {
   public:
     using vector_key_t = key_at;
@@ -313,6 +314,8 @@ class index_dense_gt {
     using serialization_config_t = index_dense_serialization_config_t;
     using storage_t = storage_at;
 
+    using dynamic_allocator_t = dynamic_allocator_at;
+
   private:
     /// @brief Schema: input buffer, bytes in input buffer, output buffer.
     using cast_t = std::function<bool(byte_t const*, std::size_t, byte_t*)>;
@@ -321,7 +324,10 @@ class index_dense_gt {
         storage_t,                                   //
         distance_t, vector_key_t, compressed_slot_t, //
         dynamic_allocator_t>;
-    using index_allocator_t = aligned_allocator_gt<index_t, 64>;
+    
+    using dynamic_allocator_traits_t = std::allocator_traits<dynamic_allocator_at>;
+    using index_allocator_t = typename dynamic_allocator_traits_t::template rebind_alloc<index_t>;
+
 
     using member_iterator_t = typename index_t::member_iterator_t;
     using member_citerator_t = typename index_t::member_citerator_t;
