@@ -568,6 +568,60 @@ using executor_default_t = executor_stl_t;
 
 #endif
 
+template<typename element_at = char>
+class custom_allocator_gt {
+public:
+    // Standard allocator types
+    using value_type = element_at;
+    using size_type = std::size_t;
+    using pointer = element_at*;
+    using const_pointer = const element_at*;
+    using difference_type = std::ptrdiff_t;
+
+    // Function pointer types
+    using alloc_func_ptr = void* (*)(size_t);
+    using free_func_ptr = void (*)(void*);
+
+    // Rebind mechanism
+    template<typename other_element_at> struct rebind {
+        using other = custom_allocator_gt<other_element_at>;
+    };
+
+    // Constructor
+    custom_allocator_gt(alloc_func_ptr alloc_func = std::malloc, free_func_ptr free_func = std::free)
+        : alloc_func(alloc_func), free_func(free_func) {}
+
+    // Allocate memory for n elements
+    pointer allocate(size_type n) const {
+        return static_cast<pointer>(alloc_func(n * sizeof(value_type)));
+    }
+
+    // Deallocate memory pointed to by p
+    void deallocate(pointer p, size_type n) const {
+        free_func(p);
+    }
+
+    // Maximum size that may be allocated
+    size_type max_size() const noexcept {
+        return std::allocator_traits<custom_allocator_gt>::max_size(*this);
+    }
+
+    // Compare two allocators for equality (always true for stateless allocators)
+    template<typename other_element_at>
+    bool operator==(const custom_allocator_gt<other_element_at>&) const noexcept {
+        return true;
+    }
+
+    template<typename other_element_at>
+    bool operator!=(const custom_allocator_gt<other_element_at>&) const noexcept {
+        return false;
+    }
+
+private:
+    alloc_func_ptr alloc_func;
+    free_func_ptr free_func;
+};
+
 /**
  *  @brief Uses OS-specific APIs for aligned memory allocations.
  */
