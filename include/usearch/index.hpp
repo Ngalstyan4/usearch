@@ -1634,12 +1634,53 @@ template <typename key_at> inline key_at get_key(member_ref_gt<key_at> const& m)
 
 using level_t = std::int16_t;
 
+/**
+ *  @brief  Integer for the number of node neighbors at a specific level of the
+ *          multi-level graph. It's selected to be `std::uint32_t` to improve the
+ *          alignment in most common cases.
+ */
+using neighbors_count_t = std::uint32_t;
 struct precomputed_constants_t {
     double inverse_log_connectivity{};
     std::size_t neighbors_bytes{};
     std::size_t neighbors_base_bytes{};
 };
 
+/**
+ *  @brief  A slice of the node's tape, containing a the list of neighbors
+ *          for a node in a single graph level. It's pre-allocated to fit
+ *          as many neighbors "slots", as may be needed at the target level,
+ *          and starts with a single integer `neighbors_count_t` counter.
+ */
+template <typename slot_at> class neighbors_ref_at {
+    byte_t* tape_;
+    using compressed_slot_t = slot_at;
+
+    static constexpr std::size_t shift(std::size_t i = 0) {
+        return sizeof(neighbors_count_t) + sizeof(compressed_slot_t) * i;
+    }
+
+  public:
+    neighbors_ref_at(byte_t* tape) noexcept : tape_(tape) {}
+    misaligned_ptr_gt<compressed_slot_t> begin() noexcept { return tape_ + shift(); }
+    misaligned_ptr_gt<compressed_slot_t> end() noexcept { return begin() + size(); }
+    misaligned_ptr_gt<compressed_slot_t const> begin() const noexcept { return tape_ + shift(); }
+    misaligned_ptr_gt<compressed_slot_t const> end() const noexcept { return begin() + size(); }
+    compressed_slot_t operator[](std::size_t i) const noexcept {
+        return misaligned_load<compressed_slot_t>(tape_ + shift(i));
+    }
+    std::size_t size() const noexcept { return misaligned_load<neighbors_count_t>(tape_); }
+    void clear() noexcept {
+        neighbors_count_t n = misaligned_load<neighbors_count_t>(tape_);
+        std::memset(tape_, 0, shift(n));
+        // misaligned_store<neighbors_count_t>(tape_, 0);
+    }
+    void push_back(compressed_slot_t slot) noexcept {
+        neighbors_count_t n = misaligned_load<neighbors_count_t>(tape_);
+        misaligned_store<compressed_slot_t>(tape_ + shift(n), slot);
+        misaligned_store<neighbors_count_t>(tape_, n + 1);
+    }
+};
 // todo:: this is public, but then we make assumptions which are not communicated via this interface
 // clean these up later
 //
@@ -1664,13 +1705,8 @@ template <typename key_at, typename slot_at> class node_at {
   public:
     using vector_key_t = key_at;
     using slot_t = slot_at;
-    /**
-     *  @brief  Integer for the number of node neighbors at a specific level of the
-     *          multi-level graph. It's selected to be `std::uint32_t` to improve the
-     *          alignment in most common cases.
-     */
-    using neighbors_count_t = std::uint32_t;
     using span_bytes_t = span_gt<byte_t>;
+    using neighbors_ref_t = neighbors_ref_at<slot_t>;
     explicit node_at(byte_t* tape) noexcept : tape_(tape) {}
     byte_t* tape() const noexcept { return tape_; }
     /**
@@ -1710,6 +1746,16 @@ template <typename key_at, typename slot_at> class node_at {
 
     void key(vector_key_t v) noexcept { return misaligned_store<vector_key_t>(tape_, v); }
     void level(level_t v) noexcept { return misaligned_store<level_t>(tape_ + sizeof(vector_key_t), v); }
+
+    inline neighbors_ref_t neighbors_base_() const noexcept { return {neighbors_tape()}; }
+
+    inline neighbors_ref_t neighbors_non_base_(const precomputed_constants_t& pre, level_t level) const noexcept {
+        return {neighbors_tape() + pre.neighbors_base_bytes + (level - 1) * pre.neighbors_bytes};
+    }
+
+    inline neighbors_ref_t neighbors_(const precomputed_constants_t& pre, level_t level) const noexcept {
+        return level ? neighbors_non_base_(pre, level) : neighbors_base_();
+    }
 };
 
 static_assert(std::is_trivially_copy_constructible<node_at<default_key_t, default_slot_t>>::value,
@@ -1820,6 +1866,7 @@ class index_gt {
     using member_ref_t = member_ref_gt<vector_key_t>;
 
     using node_t = node_at<vector_key_t, compressed_slot_t>;
+    using neighbors_ref_t = typename node_t::neighbors_ref_t;
     // using node_t = typename storage_t::node_t;
 
     template <typename ref_at, typename index_at> class member_iterator_gt {
@@ -1909,41 +1956,6 @@ class index_gt {
     using candidates_allocator_t = typename dynamic_allocator_traits_t::template rebind_alloc<candidate_t>;
     using top_candidates_t = sorted_buffer_gt<candidate_t, std::less<candidate_t>, candidates_allocator_t>;
     using next_candidates_t = max_heap_gt<candidate_t, std::less<candidate_t>, candidates_allocator_t>;
-
-    /**
-     *  @brief  A slice of the node's tape, containing a the list of neighbors
-     *          for a node in a single graph level. It's pre-allocated to fit
-     *          as many neighbors "slots", as may be needed at the target level,
-     *          and starts with a single integer `neighbors_count_t` counter.
-     */
-    class neighbors_ref_t {
-        byte_t* tape_;
-
-        static constexpr std::size_t shift(std::size_t i = 0) {
-            return sizeof(neighbors_count_t) + sizeof(compressed_slot_t) * i;
-        }
-
-      public:
-        neighbors_ref_t(byte_t* tape) noexcept : tape_(tape) {}
-        misaligned_ptr_gt<compressed_slot_t> begin() noexcept { return tape_ + shift(); }
-        misaligned_ptr_gt<compressed_slot_t> end() noexcept { return begin() + size(); }
-        misaligned_ptr_gt<compressed_slot_t const> begin() const noexcept { return tape_ + shift(); }
-        misaligned_ptr_gt<compressed_slot_t const> end() const noexcept { return begin() + size(); }
-        compressed_slot_t operator[](std::size_t i) const noexcept {
-            return misaligned_load<compressed_slot_t>(tape_ + shift(i));
-        }
-        std::size_t size() const noexcept { return misaligned_load<neighbors_count_t>(tape_); }
-        void clear() noexcept {
-            neighbors_count_t n = misaligned_load<neighbors_count_t>(tape_);
-            std::memset(tape_, 0, shift(n));
-            // misaligned_store<neighbors_count_t>(tape_, 0);
-        }
-        void push_back(compressed_slot_t slot) noexcept {
-            neighbors_count_t n = misaligned_load<neighbors_count_t>(tape_);
-            misaligned_store<compressed_slot_t>(tape_ + shift(n), slot);
-            misaligned_store<neighbors_count_t>(tape_, n + 1);
-        }
-    };
 
     /**
      *  @brief  A package of all kinds of temporary data-structures, that the threads
@@ -2658,7 +2670,7 @@ class index_gt {
             std::size_t max_edges = node.level() * config_.connectivity + config_.connectivity_base;
             std::size_t edges = 0;
             for (level_t level = 0; level <= node.level(); ++level)
-                edges += neighbors_(node, level).size();
+                edges += node.neighbors_(pre_, level).size();
 
             ++result.nodes;
             result.allocated_bytes += storage_->node_size_bytes(i);
@@ -2678,7 +2690,7 @@ class index_gt {
                 continue;
 
             ++result.nodes;
-            result.edges += neighbors_(node, level).size();
+            result.edges += node.neighbors_(pre_, level).size();
             result.allocated_bytes += node_t::head_size_bytes() + neighbors_bytes;
         }
 
@@ -2694,13 +2706,13 @@ class index_gt {
             node_t node = storage_->get_node_at(i);
 
             stats_per_level[0].nodes++;
-            stats_per_level[0].edges += neighbors_(node, 0).size();
+            stats_per_level[0].edges += node.neighbors_(pre_, 0).size();
             stats_per_level[0].allocated_bytes += pre_.neighbors_base_bytes + head_bytes;
 
             level_t node_level = static_cast<level_t>(node.level());
             for (level_t l = 1; l <= (std::min)(node_level, static_cast<level_t>(max_level)); ++l) {
                 stats_per_level[l].nodes++;
-                stats_per_level[l].edges += neighbors_(node, l).size();
+                stats_per_level[l].edges += node.neighbors_(pre_, l).size();
                 stats_per_level[l].allocated_bytes += pre_.neighbors_bytes;
             }
         }
@@ -2801,7 +2813,8 @@ class index_gt {
         nodes_count_ = header.size;
         max_level_ = static_cast<level_t>(header.max_level);
         entry_slot_ = static_cast<compressed_slot_t>(header.entry_slot);
-        // allocate dynamic contexts for queries (storage has already been allocated for the deserialization process)
+        // allocate dynamic contexts for queries (storage has already been allocated for the deserialization
+        // process)
         index_limits_t limits;
         limits.members = header.size;
         if (!reserve(limits)) {
@@ -2975,17 +2988,6 @@ class index_gt {
     typename storage_t::storage_metadata storage_metadata() noexcept { return storage_->metadata(); }
 
   private:
-    // todo:: these can also be moved to node_at, along with class neighbors_ref_t definition
-    inline neighbors_ref_t neighbors_base_(node_t node) const noexcept { return {node.neighbors_tape()}; }
-
-    inline neighbors_ref_t neighbors_non_base_(node_t node, level_t level) const noexcept {
-        return {node.neighbors_tape() + pre_.neighbors_base_bytes + (level - 1) * pre_.neighbors_bytes};
-    }
-
-    inline neighbors_ref_t neighbors_(node_t node, level_t level) const noexcept {
-        return level ? neighbors_non_base_(node, level) : neighbors_base_(node);
-    }
-
     template <typename value_at, typename metric_at, typename prefetch_at>
     void connect_node_across_levels_(                                                           //
         value_at&& value, metric_at&& metric, prefetch_at&& prefetch,                           //
@@ -3014,7 +3016,7 @@ class index_gt {
         top_candidates_t& top = context.top_candidates;
 
         // Outgoing links from `new_slot`:
-        neighbors_ref_t new_neighbors = neighbors_(new_node, level);
+        neighbors_ref_t new_neighbors = new_node.neighbors_(pre_, level);
         {
             usearch_assert_m(!new_neighbors.size(), "The newly inserted element should have blank link list");
             candidates_view_t top_view = refine_(metric, config_.connectivity, top, context);
@@ -3037,7 +3039,7 @@ class index_gt {
 
         node_t new_node = storage_->get_node_at(new_slot);
         top_candidates_t& top = context.top_candidates;
-        neighbors_ref_t new_neighbors = neighbors_(new_node, level);
+        neighbors_ref_t new_neighbors = new_node.neighbors_(pre_, level);
 
         // Reverse links from the neighbors:
         std::size_t const connectivity_max = level ? config_.connectivity : config_.connectivity_base;
@@ -3047,7 +3049,7 @@ class index_gt {
             node_lock_t close_lock = storage_->node_lock(close_slot);
             node_t close_node = storage_->get_node_at(close_slot);
 
-            neighbors_ref_t close_header = neighbors_(close_node, level);
+            neighbors_ref_t close_header = close_node.neighbors_(pre_, level);
             usearch_assert_m(close_header.size() <= connectivity_max, "Possible corruption");
             usearch_assert_m(close_slot != new_slot, "Self-loops are impossible");
             usearch_assert_m(level <= close_node.level(), "Linking to missing level");
@@ -3162,7 +3164,8 @@ class index_gt {
             do {
                 changed = false;
                 node_lock_t closest_lock = storage_->node_lock(closest_slot);
-                neighbors_ref_t closest_neighbors = neighbors_non_base_(storage_->get_node_at(closest_slot), level);
+                node_t n = storage_->get_node_at(closest_slot);
+                neighbors_ref_t closest_neighbors = n.neighbors_non_base_(pre_, level);
 
                 // Optional prefetching
                 if (!is_dummy<prefetch_at>()) {
@@ -3228,7 +3231,7 @@ class index_gt {
                 continue;
             node_t candidate_ref = storage_->get_node_at(candidate_slot);
             node_lock_t candidate_lock = storage_->node_lock(candidate_slot);
-            neighbors_ref_t candidate_neighbors = neighbors_(candidate_ref, level);
+            neighbors_ref_t candidate_neighbors = candidate_ref.neighbors_(pre_, level);
 
             // Optional prefetching
             if (!is_dummy<prefetch_at>()) {
@@ -3294,7 +3297,7 @@ class index_gt {
 
             next.pop();
 
-            neighbors_ref_t candidate_neighbors = neighbors_base_(storage_->get_node_at(candidate.slot));
+            neighbors_ref_t candidate_neighbors = storage_->get_node_at(candidate.slot).neighbors_base_();
 
             // Optional prefetching
             if (!is_dummy<prefetch_at>()) {
