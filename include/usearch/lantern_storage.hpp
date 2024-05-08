@@ -641,8 +641,9 @@ class lantern_storage_gt {
 template <typename key_at, typename compressed_slot_at, typename allocator_at = aligned_allocator_gt<byte_t, 64>>
 using lantern_storage_at = lantern_storage_gt<false, key_at, compressed_slot_at, allocator_at>;
 
-using lantern_external_storage_t = lantern_storage_gt<true, default_key_t, default_slot_t>;
-using lantern_internal_storage_t = lantern_storage_gt<false, default_key_t, default_slot_t>;
+using lantern_slot_t = default_slot_t;
+using lantern_external_storage_t = lantern_storage_gt<true, default_key_t, lantern_slot_t>;
+using lantern_internal_storage_t = lantern_storage_gt<false, default_key_t, lantern_slot_t>;
 
 ASSERT_VALID_STORAGE(lantern_external_storage_t);
 ASSERT_VALID_STORAGE(lantern_internal_storage_t);

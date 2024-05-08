@@ -19,7 +19,7 @@ using lantern_storage_t = lantern_external_storage_t;
 #else
 using lantern_storage_t = lantern_internal_storage_t;
 #endif
-using index_dense_t = index_dense_gt<default_key_t, default_slot_t, lantern_storage_t>;
+using index_dense_t = index_dense_gt<default_key_t, lantern_slot_t, lantern_storage_t>;
 
 using add_result_t = typename index_dense_t::add_result_t;
 using search_result_t = typename index_dense_t::search_result_t;
