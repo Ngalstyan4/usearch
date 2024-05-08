@@ -1958,10 +1958,6 @@ class index_gt {
         friend inline std::size_t get_slot(member_iterator_gt const& it) noexcept { return it.slot_; }
         friend inline vector_key_t get_key(member_iterator_gt const& it) noexcept { return it.key(); }
 
-        member_iterator_gt operator++(int) noexcept { return member_iterator_gt(index_, slot_ + 1); }
-        member_iterator_gt operator--(int) noexcept { return member_iterator_gt(index_, slot_ - 1); }
-        member_iterator_gt operator+(difference_type d) noexcept { return member_iterator_gt(index_, slot_ + d); }
-        member_iterator_gt operator-(difference_type d) noexcept { return member_iterator_gt(index_, slot_ - d); }
 
         // clang-format off
         member_iterator_gt& operator++() noexcept { slot_ += 1; return *this; }
