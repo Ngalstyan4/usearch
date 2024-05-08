@@ -1706,14 +1706,18 @@ struct precomputed_constants_t {
  */
 template <typename slot_at> class neighbors_ref_at {
     byte_t* tape_;
+
+  public:
     using compressed_slot_t = slot_at;
 
+  private:
     static constexpr std::size_t shift(std::size_t i = 0) {
         return sizeof(neighbors_count_t) + sizeof(compressed_slot_t) * i;
     }
 
   public:
     neighbors_ref_at(byte_t* tape) noexcept : tape_(tape) {}
+    compressed_slot_t* misaligned_tape() noexcept { return reinterpret_cast<compressed_slot_t*>(tape_ + shift()); }
     misaligned_ptr_gt<compressed_slot_t> begin() noexcept { return tape_ + shift(); }
     misaligned_ptr_gt<compressed_slot_t> end() noexcept { return begin() + size(); }
     misaligned_ptr_gt<compressed_slot_t const> begin() const noexcept { return tape_ + shift(); }
