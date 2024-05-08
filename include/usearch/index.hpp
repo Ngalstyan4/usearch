@@ -830,11 +830,63 @@ class usearch_pack_m uint40_t {
     inline static uint40_t min() noexcept { return uint40_t{}.broadcast(0); }
 };
 
+static_assert(sizeof(uint40_t) == 5, "uint40_t must be exactly 5 bytes");
+
+/*  Same as above, but a 6 byte integer type.
+ *  In lantern we override this with ItemPointerData type after index build, which
+ *  store information about the exact physical location of the node in the underlying postgres index
+ *  storage
+ */
+class usearch_pack_m uint48_t {
+    unsigned char octets[6];
+
+    inline uint48_t& broadcast(unsigned char c) {
+        std::memset(octets, c, 6);
+        return *this;
+    }
+
+  public:
+    inline uint48_t() noexcept { broadcast(0); }
+    inline uint48_t(std::uint32_t n) noexcept { std::memcpy(&octets, &n, 4); }
+
+#ifdef USEARCH_64BIT_ENV
+    inline uint48_t(std::uint64_t n) noexcept { std::memcpy(octets, &n, 6); }
+#endif
+
+    uint48_t(uint48_t&&) = default;
+    uint48_t(uint48_t const&) = default;
+    uint48_t& operator=(uint48_t&&) = default;
+    uint48_t& operator=(uint48_t const&) = default;
+
+#if defined(USEARCH_DEFINED_CLANG) && defined(USEARCH_DEFINED_APPLE)
+    inline uint48_t(std::size_t n) noexcept {
+#ifdef USEARCH_64BIT_ENV
+        std::memcpy(octets, &n, 6);
+#else
+        std::memcpy(octets, &n, 4);
+#endif
+    }
+#endif
+
+    inline operator std::size_t() const noexcept {
+        std::size_t result = 0;
+#ifdef USEARCH_64BIT_ENV
+        std::memcpy(&result, octets, 6);
+#else
+        std::memcpy(&result, octets, 4);
+#endif
+        return result;
+    }
+
+    inline static uint48_t max() noexcept { return uint48_t{}.broadcast(0xFF); }
+    inline static uint48_t min() noexcept { return uint48_t{}.broadcast(0); }
+};
+
 #if defined(USEARCH_DEFINED_WINDOWS)
 #pragma pack(pop) // Reset alignment to default
 #endif
 
-static_assert(sizeof(uint40_t) == 5, "uint40_t must be exactly 5 bytes");
+static_assert(sizeof(uint48_t) == 6, "uint48_t must be exactly 6 bytes");
 
 // clang-format off
 template <typename key_at, typename std::enable_if<std::is_integral<key_at>::value>::type* = nullptr> key_at default_free_value() { return std::numeric_limits<key_at>::max(); }

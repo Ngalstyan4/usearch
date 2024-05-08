@@ -27,6 +27,7 @@ USEARCH_EXPORT typedef void* (*usearch_node_retriever_t)(void* ctx, int index);
 
 // this is an upper bound. the actual index is smaller.
 #define USEARCH_EMPTY_INDEX_SIZE 512
+#define LANTERN_SLOT_SIZE 6
 
 /**
  *  @brief  Pointer to a null-terminated error message.
