@@ -891,7 +891,12 @@ static_assert(sizeof(uint48_t) == 6, "uint48_t must be exactly 6 bytes");
 // clang-format off
 template <typename key_at, typename std::enable_if<std::is_integral<key_at>::value>::type* = nullptr> key_at default_free_value() { return std::numeric_limits<key_at>::max(); }
 template <typename key_at, typename std::enable_if<std::is_same<key_at, uint40_t>::value>::type* = nullptr> uint40_t default_free_value() { return uint40_t::max(); }
-template <typename key_at, typename std::enable_if<!std::is_integral<key_at>::value && !std::is_same<key_at, uint40_t>::value>::type* = nullptr> key_at default_free_value() { return key_at(); }
+template <typename key_at, typename std::enable_if<std::is_same<key_at, uint48_t>::value>::type* = nullptr> uint48_t default_free_value() { return uint48_t::max(); }
+
+template <typename key_at, typename std::enable_if<!std::is_integral<key_at>::value &&
+                                                   !std::is_same<key_at, uint40_t>::value &&
+                                                   !std::is_same<key_at, uint48_t>::value
+                                                  >::type* = nullptr> key_at default_free_value() { return key_at(); }
 // clang-format on
 
 template <typename element_at> struct hash_gt {
