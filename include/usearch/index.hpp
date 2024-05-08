@@ -2004,7 +2004,8 @@ class index_gt {
 
     using visits_hash_set_t = growing_hash_set_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
     using visits_bitset_t = bitset_gt<>;
-    using visits_set_t = visits_bitset_t;
+    // using visits_set_t = visits_bitset_t;
+    using visits_set_t = visits_hash_set_t;
 
     /// @brief A space-efficient internal data-structure used in graph traversal queues.
     struct candidate_t {
