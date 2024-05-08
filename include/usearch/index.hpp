@@ -902,6 +902,10 @@ template <> struct hash_gt<uint40_t> {
     std::size_t operator()(uint40_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
 };
 
+template <> struct hash_gt<uint48_t> {
+    std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
+};
+
 /**
  *  @brief  Minimalistic hash-set implementation to track visited nodes during graph traversal.
  *
