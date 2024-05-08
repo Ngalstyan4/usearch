@@ -3035,7 +3035,7 @@ class index_gt {
     }
 
 #pragma endregion
-    using node_retriever_t = void* (*)(void* ctx, int index);
+    using node_retriever_t = typename storage_t::node_retriever_t;
     void set_node_retriever(void* retriever_ctx, node_retriever_t external_node_retriever,
                             node_retriever_t external_node_retriever_mut) noexcept {
         storage_->set_node_retriever(retriever_ctx, external_node_retriever, external_node_retriever_mut);

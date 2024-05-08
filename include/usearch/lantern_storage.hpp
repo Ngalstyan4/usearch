@@ -49,7 +49,7 @@ class lantern_storage_gt {
     using key_t = key_at;
     using node_t = node_at<key_t, compressed_slot_at>;
     using span_bytes_t = span_gt<byte_t>;
-    using node_retriever_t = void* (*)(void* ctx, int index);
+    using node_retriever_t = void* (*)(void* ctx, uint64_t index);
 
     struct storage_metadata {
         bool pq;
