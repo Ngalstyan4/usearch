@@ -173,6 +173,8 @@ USEARCH_EXPORT void usearch_view(usearch_index_t, char const* path, usearch_erro
 USEARCH_EXPORT void usearch_view_mem_lazy(usearch_index_t, char* data, usearch_error_t* error);
 USEARCH_EXPORT void usearch_update_header(usearch_index_t, char* headerp, usearch_error_t* error);
 
+USEARCH_EXPORT uint64_t usearch_header_get_entry_slot(char* headerp);
+USEARCH_EXPORT void usearch_header_set_entry_slot(char* headerp, uint64_t entry_slot);
 /**
  *  @brief Loads index metadata from a file.
  *  @param[in] path The file path from where the index will be loaded.

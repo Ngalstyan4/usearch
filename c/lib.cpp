@@ -1,3 +1,4 @@
+#include "usearch/index.hpp"
 #include "usearch/index_plugins.hpp"
 #include <cassert>
 #include <vector>
@@ -205,6 +206,20 @@ void usearch_update_header(usearch_index_t index, char* headerp, usearch_error_t
     serialization_result_t result = reinterpret_cast<index_dense_t*>(index)->update_header(headerp);
     if (!result)
         *error = result.error.release();
+}
+
+USEARCH_EXPORT uint64_t usearch_header_get_entry_slot(char* headerp) {
+    uint64_t res = 0;
+    index_serialized_header_t* second_header =
+        reinterpret_cast<index_serialized_header_t*>(headerp + sizeof(index_dense_head_buffer_t));
+    memcpy(&res, &second_header->entry_slot, sizeof(second_header->entry_slot));
+    return res;
+}
+
+USEARCH_EXPORT void usearch_header_set_entry_slot(char* headerp, uint64_t entry_slot) {
+    index_serialized_header_t* second_header =
+        reinterpret_cast<index_serialized_header_t*>(headerp + sizeof(index_dense_head_buffer_t));
+    memcpy(&second_header->entry_slot, &entry_slot, sizeof(second_header->entry_slot));
 }
 
 // ready!
