@@ -2421,10 +2421,10 @@ class index_gt {
         typename callback_at = dummy_callback_t, //
         typename prefetch_at = dummy_prefetch_t  //
         >
-    add_result_t add(                                                          //
-        vector_key_t key, level_t level, value_at&& value, metric_at&& metric, //
-        index_update_config_t config = {},                                     //
-        callback_at&& callback = callback_at{},                                //
+    add_result_t add(                                                                                  //
+        vector_key_t key, level_t level, compressed_slot_t slot, value_at&& value, metric_at&& metric, //
+        index_update_config_t config = {},                                                             //
+        callback_at&& callback = callback_at{},                                                        //
         prefetch_at&& prefetch = prefetch_at{}) usearch_noexcept_m {
 
         add_result_t result;
@@ -2455,10 +2455,14 @@ class index_gt {
 
         // Make sure we are not overflowing
         std::size_t capacity = nodes_capacity_.load();
-        std::size_t new_slot = nodes_count_.fetch_add(1);
-        if (new_slot >= capacity) {
+        std::size_t old_count = nodes_count_.fetch_add(1);
+        if (old_count >= capacity) {
             nodes_count_.fetch_sub(1);
             return result.failed("Reserve capacity ahead of insertions!");
+        }
+        // if we were not given a slot explicitly, use sequential ID as slot
+        if (slot == default_free_value<compressed_slot_t>()) {
+            slot = old_count;
         }
 
         // Allocate the neighbors
@@ -2470,15 +2474,15 @@ class index_gt {
         if (target_level <= max_level_copy)
             new_level_lock.unlock();
 
-        storage_->node_store(new_slot, node);
-        result.new_size = new_slot + 1;
-        result.slot = new_slot;
-        callback(at(new_slot));
-        node_lock_t new_lock = storage_->node_lock(new_slot);
+        storage_->node_store(slot, node);
+        result.new_size = old_count + 1;
+        result.slot = slot;
+        callback(at(slot));
+        node_lock_t new_lock = storage_->node_lock(slot);
 
         // Do nothing for the first element
-        if (!new_slot) {
-            entry_slot_ = new_slot;
+        if (!old_count) {
+            entry_slot_ = slot;
             max_level_ = target_level;
             return result;
         }
@@ -2487,9 +2491,9 @@ class index_gt {
         result.computed_distances = context.computed_distances_count;
         result.visited_members = context.iteration_cycles;
 
-        connect_node_across_levels_(                                //
-            value, metric, prefetch,                                //
-            new_slot, entry_idx_copy, max_level_copy, target_level, //
+        connect_node_across_levels_(                            //
+            value, metric, prefetch,                            //
+            slot, entry_idx_copy, max_level_copy, target_level, //
             config, context);
 
         // Normalize stats
@@ -2498,7 +2502,7 @@ class index_gt {
 
         // Updating the entry point if needed
         if (target_level > max_level_copy) {
-            entry_slot_ = new_slot;
+            entry_slot_ = slot;
             max_level_ = target_level;
         }
         return result;

@@ -626,11 +626,11 @@ class index_dense_gt {
     };
 
     // clang-format off
-    add_result_t add(vector_key_t key, b1x8_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true, level_t level = -1) { return add_(key, vector, thread, force_vector_copy, casts_.from_b1x8, level); }
-    add_result_t add(vector_key_t key, i8_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,   level_t level = -1) { return add_(key, vector, thread, force_vector_copy, casts_.from_i8, level); }
-    add_result_t add(vector_key_t key, f16_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1) { return add_(key, vector, thread, force_vector_copy, casts_.from_f16, level); }
-    add_result_t add(vector_key_t key, f32_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1) { return add_(key, vector, thread, force_vector_copy, casts_.from_f32, level); }
-    add_result_t add(vector_key_t key, f64_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1) { return add_(key, vector, thread, force_vector_copy, casts_.from_f64, level); }
+    add_result_t add(vector_key_t key, b1x8_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true, level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_b1x8, level, slot); }
+    add_result_t add(vector_key_t key, i8_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,   level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_i8, level, slot); }
+    add_result_t add(vector_key_t key, f16_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_f16, level, slot); }
+    add_result_t add(vector_key_t key, f32_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_f32, level, slot); }
+    add_result_t add(vector_key_t key, f64_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_f64, level, slot); }
 
     search_result_t search(b1x8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_b1x8); }
     search_result_t search(i8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_i8); }
@@ -1394,7 +1394,7 @@ class index_dense_gt {
     template <typename scalar_at>
     add_result_t add_(                             //
         vector_key_t key, scalar_at const* vector, //
-        std::size_t thread, bool force_vector_copy, cast_t const& cast, level_t level) {
+        std::size_t thread, bool force_vector_copy, cast_t const& cast, level_t level, compressed_slot_t slot) {
 
         // Cast the vector, if needed for compatibility with `metric_`
         thread_lock_t lock = thread_lock_(thread);
@@ -1420,7 +1420,7 @@ class index_dense_gt {
 
         metric_proxy_t metric{*this, lock.thread_id};
         usearch_assert_m(!reuse_node, "Updates not supported with Lantern");
-        return typed_->add(key, level, vector_data, metric, update_config, on_success);
+        return typed_->add(key, level, slot, vector_data, metric, update_config, on_success);
     }
 
     template <typename scalar_at>
