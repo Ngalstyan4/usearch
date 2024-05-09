@@ -147,6 +147,8 @@ enum class scalar_kind_t : std::uint8_t {
     i32_k,
     i16_k,
     i8_k,
+    // lantern:
+    u48_k,
 };
 
 enum class prefetching_kind_t {
@@ -160,6 +162,8 @@ template <typename scalar_at> scalar_kind_t scalar_kind() noexcept {
         return scalar_kind_t::b1x8_k;
     if (std::is_same<scalar_at, uint40_t>())
         return scalar_kind_t::u40_k;
+    if (std::is_same<scalar_at, uint48_t>())
+        return scalar_kind_t::u48_k;
     if (std::is_same<scalar_at, uuid_t>())
         return scalar_kind_t::uuid_k;
     if (std::is_same<scalar_at, f64_t>())
