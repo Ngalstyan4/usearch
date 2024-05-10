@@ -1915,7 +1915,8 @@ template <typename storage_at,                                    //
           typename distance_at = default_distance_t,              //
           typename key_at = default_key_t,                        //
           typename compressed_slot_at = default_slot_t,           //
-          typename dynamic_allocator_at = std::allocator<byte_t>> //
+          typename dynamic_allocator_at = std::allocator<byte_t>, //
+          bool use_bitset_visit_list_ak = false>                  //
 class index_gt {
   public:
     using storage_t = storage_at;
@@ -1957,7 +1958,6 @@ class index_gt {
 
         friend inline std::size_t get_slot(member_iterator_gt const& it) noexcept { return it.slot_; }
         friend inline vector_key_t get_key(member_iterator_gt const& it) noexcept { return it.key(); }
-
 
         // clang-format off
         member_iterator_gt& operator++() noexcept { slot_ += 1; return *this; }
@@ -2004,8 +2004,7 @@ class index_gt {
 
     using visits_hash_set_t = growing_hash_set_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
     using visits_bitset_t = bitset_gt<>;
-    // using visits_set_t = visits_bitset_t;
-    using visits_set_t = visits_hash_set_t;
+    using visits_set_t = std::conditional_t<use_bitset_visit_list_ak, visits_bitset_t, visits_hash_set_t>;
 
     /// @brief A space-efficient internal data-structure used in graph traversal queues.
     struct candidate_t {
@@ -2247,8 +2246,10 @@ class index_gt {
         limits_ = limits;
         nodes_capacity_ = limits.members;
         contexts_ = std::move(new_contexts);
-        for (std::size_t i = 0; i < limits.threads(); i++) {
-            contexts_[i].visits.reserve(nodes_capacity_);
+        if (use_bitset_visit_list_ak) {
+            for (std::size_t i = 0; i < limits.threads(); i++) {
+                contexts_[i].visits.reserve(nodes_capacity_);
+            }
         }
         return true;
     }
@@ -3306,8 +3307,10 @@ class index_gt {
             }
 
             // Assume the worst-case when reserving memory
-            if (!visits.reserve(visits.size() + candidate_neighbors.size()))
-                return false;
+            if (!use_bitset_visit_list_ak) {
+                if (!visits.reserve(visits.size() + candidate_neighbors.size()))
+                    return false;
+            }
 
             for (compressed_slot_t successor_slot : candidate_neighbors) {
                 if (visits.set(successor_slot))
@@ -3375,8 +3378,10 @@ class index_gt {
             }
 
             // Assume the worst-case when reserving memory
-            if (!visits.reserve(visits.size() + candidate_neighbors.size()))
-                return false;
+            if (!use_bitset_visit_list_ak) {
+                if (!visits.reserve(visits.size() + candidate_neighbors.size()))
+                    return false;
+            }
 
             for (compressed_slot_t successor_slot : candidate_neighbors) {
                 if (visits.set(successor_slot))
