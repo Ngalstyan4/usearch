@@ -375,6 +375,7 @@ class storage_v2_at {
     };
 
   public:
+    using node_retriever_t = void*;
     // constructor with same API as the one from lantern storage to make sure tests and benchmarks compile
     storage_v2_at(storage_options, index_config_t config, const float* = nullptr, tape_allocator_at tape_allocator = {})
         : storage_v2_at(config, tape_allocator) {}
@@ -399,6 +400,11 @@ class storage_v2_at {
             std::memcpy(vectors_lookup_[idx], vector_data, bytes_per_vector);
         } else
             vectors_lookup_[idx] = (byte_t*)vector_data;
+    }
+
+    void set_node_retriever(void* retriever_ctx, node_retriever_t external_node_retriever,
+                            node_retriever_t external_node_retriever_mut) {
+        assert(false);
     }
 
     inline size_t node_size_bytes(std::size_t idx) const noexcept { return get_node_at(idx).node_size_bytes(pre_); }
