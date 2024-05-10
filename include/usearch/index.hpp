@@ -1201,7 +1201,7 @@ struct index_config_t {
     /// The heuristic prunes passed neighbor candidates and returns a subset of it
     /// The heuristic may result in a node having less than "connectivity" neighbors, even
     /// when there are more than "connectivity" candidates
-    /// when keep_pruned is set to true, the neighbor list of the heuristic is augmented
+    /// when skip_pruned_connections is false, the neighbor list of the heuristic is augmented
     /// with some of the pruned neighbors to fill as many of node neighbor slots as possible
     bool skip_pruned_connections = false;
 
