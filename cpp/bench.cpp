@@ -4,8 +4,10 @@
  *  Search queries.
  */
 
+#include "usearch/index.hpp"
 #include "usearch/index_plugins.hpp"
 #include "usearch/lantern_storage.hpp"
+#include "usearch/storage.hpp"
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define NOMINMAX // define this macro to prevent the definition of min/max macros in Windows.h
 #define _USE_MATH_DEFINES
@@ -426,6 +428,8 @@ struct args_t {
     bool help = false;
 
     bool big = false;
+    bool usearch_storage = false;
+    bool bitset_visits = false;
 
     bool skip_pruned = false;
 
@@ -553,6 +557,10 @@ int main(int argc, char** argv) {
         (option("-o", "--output") & value("path", args.path_output)).doc(".usearch output file path"),
         (option("--skip-pruned").set(args.skip_pruned)).doc("Do not add pruned candidates to vacant neighbor slots"),
         (option("-b", "--big").set(args.big)).doc("Will switch to uint40_t for neighbors lists with over 4B entries"),
+        (option("--usearch-storage").set(args.usearch_storage))
+            .doc("Use usearch storage in stead of default lantern one"),
+        (option("--bitset-visits").set(args.bitset_visits))
+            .doc("Use bitset to track node visits, in stead of default hashset"),
         (option("--pq").set(args.pq)).doc("Create a product-quantized (PQ) index"),
         (option("--num_subvectors") & value("integer", args.num_subvectors)).doc("Number of subvectors for PQ"),
         (option("--num_centroids") & value("integer", args.num_centroids)).doc("Number of centroids for PQ"),
@@ -628,6 +636,8 @@ int main(int argc, char** argv) {
         std::printf("-- Skip pruned: true\n");
         config.skip_pruned_connections = true;
     }
+    std::printf("-- Storage: %s\n", args.usearch_storage ? "usearch" : "lantern");
+    std::printf("-- Visits stracking: %s\n", args.bitset_visits ? "bitset" : "hashset");
 
     if (args.big)
 #ifdef USEARCH_64BIT_ENV
@@ -635,9 +645,23 @@ int main(int argc, char** argv) {
 #else
         std::printf("Error: Don't use 40 bit identifiers in 32bit environment\n");
 #endif
-    else
-        run_punned<index_dense_gt<default_key_t, std::uint32_t, lantern_internal_storage_t>>(dataset, args, config,
-                                                                                             limits);
+    else {
+        if (args.usearch_storage) {
+            if (args.bitset_visits)
+                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, true>>(dataset, args, config,
+                                                                                                limits);
+            else
+                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, false>>(dataset, args, config,
+                                                                                                 limits);
+        } else {
+            if (args.bitset_visits)
+                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, true>>(
+                    dataset, args, config, limits);
+            else
+                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, false>>(
+                    dataset, args, config, limits);
+        }
+    }
 
     return 0;
 }
