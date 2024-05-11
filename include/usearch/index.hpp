@@ -908,10 +908,6 @@ template <> struct hash_gt<uint40_t> {
     std::size_t operator()(uint40_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
 };
 
-// standard hash function is the identity function.
-// https://stackoverflow.com/questions/19411742/what-is-the-default-hash-function-used-in-c-stdunordered-map
-// identity function is really bad for the growing hash table, so we will provide a custom one that ignores offsetnumber
-// and forces blocknumber only for hash bucket consideration
 template <> struct hash_gt<uint48_t> {
     std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element >> 16); }
 };
@@ -1974,6 +1970,7 @@ class index_gt {
     using vector_key_t = key_at;
     using key_t = vector_key_t;
     using compressed_slot_t = compressed_slot_at;
+    using compressed_slot_hasher = typename storage_at::compressed_slot_hasher;
     using dynamic_allocator_t = dynamic_allocator_at;
     static_assert(sizeof(vector_key_t) >= sizeof(compressed_slot_t), "Having tiny keys doesn't make sense.");
 
@@ -2051,10 +2048,9 @@ class index_gt {
      */
     using neighbors_count_t = std::uint32_t;
 
-    using visits_unordered_set_t =
-        unordered_hashset_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
+    using visits_unordered_set_t = unordered_hashset_gt<compressed_slot_t, compressed_slot_hasher, dynamic_allocator_t>;
     using visits_growing_hash_set_t =
-        growing_hash_set_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
+        growing_hash_set_gt<compressed_slot_t, compressed_slot_hasher, dynamic_allocator_t>;
     using visits_bitset_t = bitset_gt<>;
     // clang-format off
     // todo:: q:: what type can I put in place of int below to cause nicer error messages when wrong type arg is passed?

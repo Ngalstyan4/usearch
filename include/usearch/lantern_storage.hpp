@@ -296,6 +296,21 @@ class lantern_storage_gt {
         inline ~node_lock_t() noexcept { mutexes.atomic_reset(slot); }
     };
 
+    // standard hash function is the identity function.
+    // https://stackoverflow.com/questions/19411742/what-is-the-default-hash-function-used-in-c-stdunordered-map
+    // identity function is really bad for the growing hash table, so we will provide a custom one that ignores
+    // offsetnumber and forces blocknumber only for hash bucket consideration
+    struct hash_gt_tid {
+        std::size_t operator()(compressed_slot_at const& element) const noexcept {
+            return std::hash<std::size_t>{}(element >> 16);
+        }
+    };
+    struct hash_gt_seq {
+        std::size_t operator()(compressed_slot_at const& element) const noexcept {
+            return std::hash<std::size_t>{}(element);
+        }
+    };
+    using compressed_slot_hasher = std::conditional_t<is_external_ak, hash_gt_tid, hash_gt_seq>;
     // when using external storage, the external storage is responsible for doing appropriate locking before passing
     // objects to us, so we use a dummy lock here When allocating nodes ourselves, however, we do proper per=node
     // locking with a bitfield, identical to how upstream usearch storeage does it
