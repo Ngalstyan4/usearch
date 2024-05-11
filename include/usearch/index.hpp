@@ -85,7 +85,8 @@
 #include <random>    // `std::default_random_engine` - replacement candidate
 #include <stdexcept> // `std::runtime_exception`
 #include <thread>    // `std::thread`
-#include <utility>   // `std::pair`
+#include <unordered_set>
+#include <utility> // `std::pair`
 
 // Prefetching
 #if defined(USEARCH_DEFINED_GCC)
@@ -1041,6 +1042,47 @@ class growing_hash_set_gt {
     }
 };
 
+template <typename element_at, typename hasher_at = hash_gt<element_at>, typename allocator_at = std::allocator<byte_t>>
+class unordered_hashset_gt {
+
+    using element_t = element_at;
+    using hasher_t = hasher_at;
+
+    using allocator_t = allocator_at;
+    using byte_t = typename allocator_t::value_type;
+    static_assert(sizeof(byte_t) == 1, "Allocator must allocate separate addressable bytes");
+
+    std::unordered_set<element_at, hasher_at> uset_;
+
+  public:
+    unordered_hashset_gt() noexcept {}
+    ~unordered_hashset_gt() noexcept { reset(); }
+
+    std::size_t size() const noexcept { return uset_.size(); }
+
+    void clear() noexcept { uset_.clear(); }
+
+    void reset() noexcept { uset_ = std::unordered_set<element_at, hasher_at>(); }
+
+    inline bool test(element_t const& elem) const noexcept { return uset_.find(elem) != uset_.end(); }
+
+    /**
+     *
+     *  @return Similar to `bitset_gt`, returns the previous value.
+     */
+    inline bool set(element_t const& elem) noexcept {
+        if (uset_.find(elem) != uset_.end())
+            return true;
+        uset_.insert(elem);
+        return false;
+    }
+
+    bool reserve(std::size_t new_capacity) noexcept {
+        uset_.reserve(new_capacity);
+        return true;
+    }
+};
+
 /**
  *  @brief  Basic single-threaded @b ring class, used for all kinds of task queues.
  */
@@ -1916,8 +1958,11 @@ template <typename storage_at,                                    //
           typename key_at = default_key_t,                        //
           typename compressed_slot_at = default_slot_t,           //
           typename dynamic_allocator_at = std::allocator<byte_t>, //
-          bool use_bitset_visit_list_ak = false>                  //
+          char visits_container_type_ak = 'G'>                    //
 class index_gt {
+    static_assert(visits_container_type_ak == 'B' || visits_container_type_ak == 'U' ||
+                  visits_container_type_ak == 'G');
+
   public:
     using storage_t = storage_at;
     using node_lock_t = typename storage_t::lock_type;
@@ -2002,9 +2047,18 @@ class index_gt {
      */
     using neighbors_count_t = std::uint32_t;
 
-    using visits_hash_set_t = growing_hash_set_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
+    using visits_unordered_set_t =
+        unordered_hashset_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
+    using visits_growing_hash_set_t =
+        growing_hash_set_gt<compressed_slot_t, hash_gt<compressed_slot_t>, dynamic_allocator_t>;
     using visits_bitset_t = bitset_gt<>;
-    using visits_set_t = std::conditional_t<use_bitset_visit_list_ak, visits_bitset_t, visits_hash_set_t>;
+    // clang-format off
+    // todo:: q:: what type can I put in place of int below to cause nicer error messages when wrong type arg is passed?
+    using visits_set_t =
+        std::conditional_t<visits_container_type_ak == 'B', visits_bitset_t,
+        std::conditional_t<visits_container_type_ak == 'U', visits_unordered_set_t,
+        std::conditional_t<visits_container_type_ak == 'G', visits_growing_hash_set_t, int>>>;
+    // clang-format on
 
     /// @brief A space-efficient internal data-structure used in graph traversal queues.
     struct candidate_t {
@@ -2246,7 +2300,7 @@ class index_gt {
         limits_ = limits;
         nodes_capacity_ = limits.members;
         contexts_ = std::move(new_contexts);
-        if (use_bitset_visit_list_ak) {
+        if (visits_container_type_ak == 'B') {
             for (std::size_t i = 0; i < limits.threads(); i++) {
                 contexts_[i].visits.reserve(nodes_capacity_);
             }
@@ -3307,7 +3361,7 @@ class index_gt {
             }
 
             // Assume the worst-case when reserving memory
-            if (!use_bitset_visit_list_ak) {
+            if (visits_container_type_ak != 'B') {
                 if (!visits.reserve(visits.size() + candidate_neighbors.size()))
                     return false;
             }
@@ -3378,7 +3432,7 @@ class index_gt {
             }
 
             // Assume the worst-case when reserving memory
-            if (!use_bitset_visit_list_ak) {
+            if (visits_container_type_ak != 'B') {
                 if (!visits.reserve(visits.size() + candidate_neighbors.size()))
                     return false;
             }
