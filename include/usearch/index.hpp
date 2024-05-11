@@ -908,8 +908,11 @@ template <> struct hash_gt<uint40_t> {
     std::size_t operator()(uint40_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
 };
 
+// note:: uint48_t is used in lantern storage, but this hasher is not.
+// we specialize the hasher in storage provider and expose it via compressed_slot_hasher to allow for custom tid
+// hashing
 template <> struct hash_gt<uint48_t> {
-    std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element >> 16); }
+    std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
 };
 
 /**
