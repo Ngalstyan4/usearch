@@ -429,7 +429,7 @@ struct args_t {
 
     bool big = false;
     bool usearch_storage = false;
-    bool bitset_visits = false;
+    char visits_container = 'G';
 
     bool skip_pruned = false;
 
@@ -559,8 +559,8 @@ int main(int argc, char** argv) {
         (option("-b", "--big").set(args.big)).doc("Will switch to uint40_t for neighbors lists with over 4B entries"),
         (option("--usearch-storage").set(args.usearch_storage))
             .doc("Use usearch storage in stead of default lantern one"),
-        (option("--bitset-visits").set(args.bitset_visits))
-            .doc("Use bitset to track node visits, in stead of default hashset"),
+        (option("-visits-container") & value("character", args.visits_container))
+            .doc("Use (B)itset, std::(U)nordered_set, or custom (G)rowing hash set"),
         (option("--pq").set(args.pq)).doc("Create a product-quantized (PQ) index"),
         (option("--num_subvectors") & value("integer", args.num_subvectors)).doc("Number of subvectors for PQ"),
         (option("--num_centroids") & value("integer", args.num_centroids)).doc("Number of centroids for PQ"),
@@ -637,7 +637,7 @@ int main(int argc, char** argv) {
         config.skip_pruned_connections = true;
     }
     std::printf("-- Storage: %s\n", args.usearch_storage ? "usearch" : "lantern");
-    std::printf("-- Visits stracking: %s\n", args.bitset_visits ? "bitset" : "hashset");
+    std::printf("-- Visits tracking: %c\n", args.visits_container);
 
     if (args.big)
 #ifdef USEARCH_64BIT_ENV
@@ -647,19 +647,27 @@ int main(int argc, char** argv) {
 #endif
     else {
         if (args.usearch_storage) {
-            if (args.bitset_visits)
-                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, true>>(dataset, args, config,
-                                                                                                limits);
-            else
-                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, false>>(dataset, args, config,
-                                                                                                 limits);
+            if (args.visits_container == 'B')
+                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, 'B'>>(dataset, args, config,
+                                                                                               limits);
+            else if (args.visits_container == 'U')
+                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, 'U'>>(dataset, args, config,
+                                                                                               limits);
+            else if (args.visits_container == 'G') {
+                run_punned<index_dense_gt<default_key_t, uint32_t, default_storage_v2_t, 'G'>>(dataset, args, config,
+                                                                                               limits);
+            }
         } else {
-            if (args.bitset_visits)
-                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, true>>(
+            if (args.visits_container == 'B')
+                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, 'B'>>(
                     dataset, args, config, limits);
-            else
-                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, false>>(
+            else if (args.visits_container == 'U')
+                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, 'U'>>(
                     dataset, args, config, limits);
+            else if (args.visits_container == 'G') {
+                run_punned<index_dense_gt<default_key_t, lantern_slot_t, lantern_internal_storage_t, 'G'>>(
+                    dataset, args, config, limits);
+            }
         }
     }
 
