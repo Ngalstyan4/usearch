@@ -2061,7 +2061,8 @@ class index_gt {
     using visits_set_t =
         std::conditional_t<visits_container_type_ak == 'B', visits_bitset_t,
         std::conditional_t<visits_container_type_ak == 'U', visits_unordered_set_t,
-        std::conditional_t<visits_container_type_ak == 'G', visits_growing_hash_set_t, int>>>;
+        std::conditional_t<visits_container_type_ak == 'G', visits_growing_hash_set_t,
+        int>>>;
     // clang-format on
 
     /// @brief A space-efficient internal data-structure used in graph traversal queues.
