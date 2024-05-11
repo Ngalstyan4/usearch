@@ -908,8 +908,12 @@ template <> struct hash_gt<uint40_t> {
     std::size_t operator()(uint40_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
 };
 
+// standard hash function is the identity function.
+// https://stackoverflow.com/questions/19411742/what-is-the-default-hash-function-used-in-c-stdunordered-map
+// identity function is really bad for the growing hash table, so we will provide a custom one that ignores offsetnumber
+// and forces blocknumber only for hash bucket consideration
 template <> struct hash_gt<uint48_t> {
-    std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element); }
+    std::size_t operator()(uint48_t const& element) const noexcept { return std::hash<std::size_t>{}(element >> 16); }
 };
 
 /**
