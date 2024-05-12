@@ -23,7 +23,10 @@ USEARCH_EXPORT typedef uint64_t usearch_key_t;
 // this just sets up an alias so the names are interchangable
 USEARCH_EXPORT typedef usearch_key_t usearch_label_t;
 USEARCH_EXPORT typedef float usearch_distance_t;
-USEARCH_EXPORT typedef void* (*usearch_node_retriever_t)(void* ctx, uint64_t index);
+// gcc defines uint64_t as unsigned long, wile clang defines it as unsigned long long
+// postgres #defines the two in the opposite order for uint64...
+// explicitly making these unsigned long long seems to be the only solution
+USEARCH_EXPORT typedef void* (*usearch_node_retriever_t)(void* ctx, unsigned long long index);
 
 // this is an upper bound. the actual index is smaller.
 #define USEARCH_EMPTY_INDEX_SIZE 512
