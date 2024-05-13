@@ -1,7 +1,6 @@
 #include "usearch/index.hpp"
 #include "usearch/index_plugins.hpp"
 #include <cassert>
-#include <iostream>
 #include <vector>
 
 #include <usearch/index_dense.hpp>
