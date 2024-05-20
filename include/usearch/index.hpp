@@ -849,7 +849,6 @@ class usearch_pack_m uint48_t {
 
   public:
     inline uint48_t() noexcept { broadcast(0); }
-    inline uint48_t(std::uint32_t n) noexcept { std::memcpy(&octets, &n, 4); }
     inline uint48_t(std::uint64_t n) noexcept { std::memcpy(octets, &n, 6); }
 
     uint48_t(uint48_t&&) = default;
