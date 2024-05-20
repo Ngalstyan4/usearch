@@ -857,7 +857,7 @@ class usearch_pack_m uint48_t {
     uint48_t& operator=(uint48_t const&) = default;
 
 #if defined(__EMSCRIPTEN__) || (defined(USEARCH_DEFINED_CLANG) && defined(USEARCH_DEFINED_APPLE))
-    inline uint48_t(std::size_t n) noexcept {
+    explicit inline uint48_t(std::size_t n) noexcept {
 #ifdef USEARCH_64BIT_ENV
         std::memcpy(octets, &n, 6);
 #else
@@ -2150,7 +2150,8 @@ class index_gt {
         storage_t* storage, //
         index_config_t config = {}, dynamic_allocator_t dynamic_allocator = {}) noexcept
         : storage_(storage), config_(config), limits_(0, 0), dynamic_allocator_(std::move(dynamic_allocator)),
-          pre_(node_t::precompute_(config)), nodes_count_(0u), max_level_(-1), entry_slot_(0u), contexts_() {}
+          pre_(node_t::precompute_(config)), nodes_count_(0u), max_level_(-1),
+          entry_slot_(static_cast<std::size_t>(0u)), contexts_() {}
 
     /**
      *  @brief  Clones the structure with the same hyper-parameters, but without contents.
