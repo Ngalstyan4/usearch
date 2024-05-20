@@ -856,7 +856,14 @@ class usearch_pack_m uint48_t {
     uint48_t& operator=(uint48_t&&) = default;
     uint48_t& operator=(uint48_t const&) = default;
 
-#if defined(USEARCH_DEFINED_CLANG) && defined(USEARCH_DEFINED_APPLE)
+#if defined(__EMSCRIPTEN__) || (defined(USEARCH_DEFINED_CLANG) && defined(USEARCH_DEFINED_APPLE))
+    inline uint48_t(std::size_t n) noexcept {
+#ifdef USEARCH_64BIT_ENV
+        std::memcpy(octets, &n, 6);
+#else
+        std::memcpy(octets, &n, 4);
+#endif
+    }
 #endif
 
     inline operator std::uint64_t() const noexcept {
