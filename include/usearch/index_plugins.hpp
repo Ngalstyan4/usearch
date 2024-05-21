@@ -909,7 +909,7 @@ template <typename from_scalar_at> struct cast_gt<from_scalar_at, b1x8_t> {
         from_scalar_at const* typed_input = reinterpret_cast<from_scalar_at const*>(input);
         unsigned char* typed_output = reinterpret_cast<unsigned char*>(output);
         for (std::size_t i = 0; i != dim; ++i)
-            typed_output[i / CHAR_BIT] |= bool(typed_input[i]) ? (128 >> (i & (CHAR_BIT - 1))) : 0;
+            typed_output[i / CHAR_BIT] |= typed_input[i] > 0 ? (128 >> (i & (CHAR_BIT - 1))) : 0;
         return true;
     }
 };
