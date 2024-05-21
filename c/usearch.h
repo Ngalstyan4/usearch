@@ -118,9 +118,7 @@ USEARCH_EXPORT typedef struct usearch_init_options_t {
 
 USEARCH_EXPORT typedef struct {
     usearch_init_options_t init_options;
-    // todo:: embed usearch_init_options_t in this, in stead of repeating fields
     double inverse_log_connectivity;
-    // size_t connectivity_max_base;
     size_t neighbors_bytes;
     size_t neighbors_base_bytes;
     size_t dimensions;
