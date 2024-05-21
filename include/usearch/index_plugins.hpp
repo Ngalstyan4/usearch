@@ -1054,8 +1054,7 @@ template <typename scalar_at = float, typename result_at = scalar_at> struct met
  *          tokenized and hashed into a fixed-capacity bitset.
  */
 template <typename scalar_at = std::uint64_t, typename result_at = std::size_t> struct metric_hamming_gt {
-    // todo:: properly fix hamming in lantern to comply with new usearch interface
-    using scalar_t = std::int32_t;
+    using scalar_t = scalar_at;
     using result_t = result_at;
     // static_assert( //
     //     std::is_unsigned<scalar_t>::value ||
