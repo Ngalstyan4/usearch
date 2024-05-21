@@ -212,7 +212,11 @@ class lantern_storage_gt {
   public:
     lantern_storage_gt(storage_options options, index_config_t config, allocator_at allocator = {})
         : pre_(node_t::precompute_(config)), allocator_(allocator), pq_(false),
-          vector_size_bytes_(options.dimensions * options.scalar_bytes) {}
+          vector_size_bytes_(options.dimensions * options.scalar_bytes) {
+        if (vector_size_bytes_ == 0) {
+            vector_size_bytes_ = options.dimensions / 8;
+        }
+    }
 
     lantern_storage_gt(storage_options options, index_config_t config, const float* codebook,
                        allocator_at allocator = {})
