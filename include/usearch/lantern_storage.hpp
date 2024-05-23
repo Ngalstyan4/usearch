@@ -13,6 +13,7 @@
 #include <usearch/storage.hpp>
 
 #ifndef NDEBUG
+#include <inttypes.h>
 #include <iostream>
 #include <string>
 #endif // !NDEBUG
@@ -212,16 +213,12 @@ class lantern_storage_gt {
   public:
     lantern_storage_gt(storage_options options, index_config_t config, allocator_at allocator = {})
         : pre_(node_t::precompute_(config)), allocator_(allocator), pq_(false),
-          vector_size_bytes_(options.dimensions * options.scalar_bytes) {
-        if (vector_size_bytes_ == 0) {
-            vector_size_bytes_ = options.dimensions / 8;
-        }
-    }
+          vector_size_bytes_(options.dimensions * options.scalar_bits / 8) {}
 
     lantern_storage_gt(storage_options options, index_config_t config, const float* codebook,
                        allocator_at allocator = {})
         : pre_(node_t::precompute_(config)), allocator_(allocator), pq_(options.pq),
-          vector_size_bytes_(options.dimensions * options.scalar_bytes),
+          vector_size_bytes_(options.dimensions * options.scalar_bits / 8),
           pq_codebook_(codebook, vector_size_bytes_ / sizeof(float), options.num_centroids, options.num_subvectors) {
         assert(options.pq);
         assert(options.num_centroids > 0);

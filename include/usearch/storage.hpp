@@ -182,7 +182,7 @@ using serialization_config_t = index_dense_serialization_config_t;
 
 struct storage_options {
     size_t dimensions;
-    size_t scalar_bytes;
+    size_t scalar_bits;
     bool pq;
     size_t num_centroids;
     size_t num_subvectors;

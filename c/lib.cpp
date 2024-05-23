@@ -147,7 +147,7 @@ USEARCH_EXPORT usearch_index_t usearch_init(usearch_init_options_t* options, flo
     opts.pq = options->pq;
     opts.num_centroids = options->num_centroids;
     opts.num_subvectors = options->num_subvectors;
-    opts.scalar_bytes = bits_per_scalar(scalar_kind) / 8;
+    opts.scalar_bits = bits_per_scalar(scalar_kind);
     index_dense_t index = index_dense_t::make(metric, opts, options->num_threads, config, codebook);
 
     if (options->retriever != nullptr || options->retriever_mut != nullptr) {
