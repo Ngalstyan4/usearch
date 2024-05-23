@@ -87,10 +87,10 @@ add_result_t add_(index_dense_t* index, usearch_key_t key, void const* vector, s
                   uint64_t slot = -1) {
     switch (kind) {
     case scalar_kind_t::f32_k: return index->add(key, (f32_t const*)vector, 0, true, level, slot);
-    case scalar_kind_t::f64_k: return index->add(key, (f64_t const*)vector);
-    case scalar_kind_t::f16_k: return index->add(key, (f16_t const*)vector);
-    case scalar_kind_t::i8_k: return index->add(key, (i8_t const*)vector);
-    case scalar_kind_t::b1x8_k: return index->add(key, (b1x8_t const*)vector);
+    case scalar_kind_t::f64_k: return index->add(key, (f64_t const*)vector, 0, true, level, slot);
+    case scalar_kind_t::f16_k: return index->add(key, (f16_t const*)vector, 0, true, level, slot);
+    case scalar_kind_t::i8_k: return index->add(key, (i8_t const*)vector, 0, true, level, slot);
+    case scalar_kind_t::b1x8_k: return index->add(key, (b1x8_t const*)vector, 0, true, level, slot);
     default: return add_result_t{}.failed("Unknown scalar kind!");
     }
 }
