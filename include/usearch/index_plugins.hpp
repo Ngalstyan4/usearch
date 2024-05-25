@@ -344,7 +344,6 @@ class f16_bits_t {
     inline f16_bits_t& operator=(f16_bits_t const&) = default;
 
     inline operator float() const noexcept { return f16_to_f32(uint16_); }
-    inline explicit operator bool() const noexcept { return f16_to_f32(uint16_) > 0.5f; }
 
     inline f16_bits_t(i8_converted_t) noexcept;
     inline f16_bits_t(std::int8_t v) noexcept : uint16_(v) {}
@@ -950,7 +949,6 @@ class i8_converted_t {
     inline operator float() const noexcept { return float(int8_) / divisor_k; }
     inline operator f16_t() const noexcept { return float(int8_) / divisor_k; }
     inline operator double() const noexcept { return double(int8_) / divisor_k; }
-    inline explicit operator bool() const noexcept { return int8_ > (max_k / 2); }
     inline explicit operator std::int8_t() const noexcept { return int8_; }
     inline explicit operator std::int16_t() const noexcept { return int8_; }
     inline explicit operator std::int32_t() const noexcept { return int8_; }
