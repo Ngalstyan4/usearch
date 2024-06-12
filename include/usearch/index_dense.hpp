@@ -633,11 +633,11 @@ class index_dense_gt {
     add_result_t add(vector_key_t key, f32_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_f32, level, slot); }
     add_result_t add(vector_key_t key, f64_t const* vector, std::size_t thread = any_thread(), bool force_vector_copy = true,  level_t level = -1, compressed_slot_t slot = default_free_value<compressed_slot_t>()) { return add_(key, vector, thread, force_vector_copy, casts_.from_f64, level, slot); }
 
-    search_result_t search(b1x8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_b1x8); }
-    search_result_t search(i8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_i8); }
-    search_result_t search(f16_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f16); }
-    search_result_t search(f32_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f32); }
-    search_result_t search(f64_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f64); }
+    search_result_t search(b1x8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool continue_search = false, bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_b1x8, continue_search); }
+    search_result_t search(i8_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool continue_search = false, bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_i8, continue_search); }
+    search_result_t search(f16_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool continue_search = false, bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f16, continue_search); }
+    search_result_t search(f32_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool continue_search = false, bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f32, continue_search); }
+    search_result_t search(f64_t const* vector, std::size_t wanted, std::size_t thread = any_thread(), bool continue_search = false, bool exact = false) const { return search_(vector, wanted, thread, exact, casts_.from_f64, continue_search); }
 
     std::size_t get(vector_key_t key, b1x8_t* vector, std::size_t vectors_count = 1) const { return get_(key, vector, vectors_count, casts_.to_b1x8); }
     std::size_t get(vector_key_t key, i8_t* vector, std::size_t vectors_count = 1) const { return get_(key, vector, vectors_count, casts_.to_i8); }
@@ -1402,6 +1402,7 @@ class index_dense_gt {
         bool copy_vector = !config_.exclude_vectors || force_vector_copy;
         byte_t const* vector_data = reinterpret_cast<byte_t const*>(vector);
         {
+
             byte_t* casted_data = cast_buffer_.data() + metric_.bytes_per_vector() * lock.thread_id;
             bool casted = cast(vector_data, dimensions(), casted_data);
             if (casted)
@@ -1427,7 +1428,7 @@ class index_dense_gt {
     template <typename scalar_at>
     search_result_t search_(                         //
         scalar_at const* vector, std::size_t wanted, //
-        std::size_t thread, bool exact, cast_t const& cast) const {
+        std::size_t thread, bool exact, cast_t const& cast, bool continue_search = false) const {
 
         // Cast the vector, if needed for compatibility with `metric_`
         thread_lock_t lock = thread_lock_(thread);
@@ -1445,7 +1446,8 @@ class index_dense_gt {
         search_config.exact = exact;
 
         auto allow = [=](member_cref_t const& member) noexcept { return member.key != free_key_; };
-        return typed_->search(vector_data, wanted, metric_proxy_t{*this, lock.thread_id}, search_config, allow);
+        return typed_->search(vector_data, wanted, metric_proxy_t{*this, lock.thread_id}, search_config, allow,
+                              dummy_prefetch_t{}, continue_search);
     }
 
     template <typename scalar_at>

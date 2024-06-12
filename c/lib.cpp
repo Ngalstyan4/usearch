@@ -107,13 +107,20 @@ std::size_t get_(index_dense_t* index, usearch_key_t key, size_t count, void* ve
 }
 
 // todo:: add ef optional parameter
-search_result_t search_(index_dense_t* index, void const* vector, scalar_kind_t kind, size_t n) {
+search_result_t search_(index_dense_t* index, void const* vector, scalar_kind_t kind, size_t n,
+                        bool continue_search = false) {
     switch (kind) {
-    case scalar_kind_t::f32_k: return index->search((f32_t const*)vector, n);
-    case scalar_kind_t::f64_k: return index->search((f64_t const*)vector, n);
-    case scalar_kind_t::f16_k: return index->search((f16_t const*)vector, n);
-    case scalar_kind_t::i8_k: return index->search((i8_t const*)vector, n);
-    case scalar_kind_t::b1x8_k: return index->search((b1x8_t const*)vector, n);
+
+    case scalar_kind_t::f32_k:
+        return index->search((f32_t const*)vector, n, index_dense_t::any_thread(), continue_search);
+    case scalar_kind_t::f64_k:
+        return index->search((f64_t const*)vector, n, index_dense_t::any_thread(), continue_search);
+    case scalar_kind_t::f16_k:
+        return index->search((f16_t const*)vector, n, index_dense_t::any_thread(), continue_search);
+    case scalar_kind_t::i8_k:
+        return index->search((i8_t const*)vector, n, index_dense_t::any_thread(), continue_search);
+    case scalar_kind_t::b1x8_k:
+        return index->search((b1x8_t const*)vector, n, index_dense_t::any_thread(), continue_search);
     default: return search_result_t().failed("Unknown scalar kind!");
     }
 }
@@ -381,12 +388,13 @@ USEARCH_EXPORT size_t usearch_count(usearch_index_t index, usearch_key_t key, us
 
 USEARCH_EXPORT size_t usearch_search_ef(                                                         //
     usearch_index_t index, void const* vector, usearch_scalar_kind_t kind, size_t results_limit, //
-    size_t ef, usearch_key_t* found_keys, usearch_distance_t* found_distances, usearch_error_t* error) {
+    size_t ef, bool continue_search, usearch_key_t* found_keys, usearch_distance_t* found_distances,
+    usearch_error_t* error) {
 
     // todo:: come back and use the custom EF
     assert(index && vector && error);
-    search_result_t result =
-        search_(reinterpret_cast<index_dense_t*>(index), vector, scalar_kind_to_cpp(kind), results_limit);
+    search_result_t result = search_(reinterpret_cast<index_dense_t*>(index), vector, scalar_kind_to_cpp(kind),
+                                     results_limit, continue_search);
     if (!result) {
         *error = result.error.release();
         return 0;
@@ -398,7 +406,7 @@ USEARCH_EXPORT size_t usearch_search_ef(                                        
 USEARCH_EXPORT size_t usearch_search( //
     usearch_index_t index, void const* vector, usearch_scalar_kind_t kind, size_t results_limit,
     usearch_key_t* found_keys, usearch_distance_t* found_distances, usearch_error_t* error) {
-    return usearch_search_ef(index, vector, kind, results_limit, 0, found_keys, found_distances, error);
+    return usearch_search_ef(index, vector, kind, results_limit, 0, false, found_keys, found_distances, error);
 }
 
 // not used in lantern

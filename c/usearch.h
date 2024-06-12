@@ -277,7 +277,8 @@ USEARCH_EXPORT size_t usearch_count(usearch_index_t, usearch_key_t, usearch_erro
 USEARCH_EXPORT size_t usearch_search_ef(                        //
     usearch_index_t,                                            //
     void const* query_vector, usearch_scalar_kind_t query_kind, //
-    size_t count, size_t ef, usearch_key_t* keys, usearch_distance_t* distances, usearch_error_t* error);
+    size_t count, size_t ef, bool continue_search, usearch_key_t* keys, usearch_distance_t* distances,
+    usearch_error_t* error);
 
 /** @brief Performs k-Approximate Nearest Neighbors (kANN) Search for closest vectors to query.
  *  Same as above, but using the default ef parameter value or the value provided during index construction

@@ -712,6 +712,7 @@ class sorted_buffer_gt {
     inline std::size_t size() const noexcept { return size_; }
     inline std::size_t capacity() const noexcept { return capacity_; }
     inline element_t const& top() const noexcept { return elements_[size_ - 1]; }
+    inline element_t const& bottom() const noexcept { return elements_[0]; }
     inline void clear() noexcept { size_ = 0; }
 
     bool reserve(std::size_t new_capacity) noexcept {
@@ -2078,6 +2079,7 @@ class index_gt {
         top_candidates_t top_candidates{};
         next_candidates_t next_candidates{};
         visits_set_t visits{};
+        visits_set_t consumed{};
         std::default_random_engine level_generator{};
         std::size_t iteration_cycles{};
         std::size_t computed_distances_count{};
@@ -2681,7 +2683,9 @@ class index_gt {
         metric_at&& metric,                        //
         index_search_config_t config = {},         //
         predicate_at&& predicate = predicate_at{}, //
-        prefetch_at&& prefetch = prefetch_at{}) const noexcept {
+        prefetch_at&& prefetch = prefetch_at{},    //
+        bool continue_search = false               //
+    ) const noexcept {
 
         context_t& context = contexts_[config.thread];
         top_candidates_t& top = context.top_candidates;
@@ -2696,7 +2700,7 @@ class index_gt {
         if (config.exact) {
             if (!top.reserve(wanted))
                 return result.failed("Out of memory!");
-            search_exact_(query, metric, predicate, wanted, context);
+            search_exact_(query, metric, predicate, wanted, context, continue_search);
         } else {
             next_candidates_t& next = context.next_candidates;
             std::size_t expansion = (std::max)(config.expansion, wanted);
@@ -2705,11 +2709,13 @@ class index_gt {
             if (!top.reserve(expansion))
                 return result.failed("Out of memory!");
 
-            compressed_slot_t closest_slot =
-                search_for_one_(query, metric, prefetch, entry_slot_, max_level_, 0, context);
+            compressed_slot_t closest_slot = -1;
+            if (!continue_search)
+                closest_slot = search_for_one_(query, metric, prefetch, entry_slot_, max_level_, 0, context);
 
             // For bottom layer we need a more optimized procedure
-            if (!search_to_find_in_base_(query, metric, predicate, prefetch, closest_slot, expansion, context))
+            if (!search_to_find_in_base_(query, metric, predicate, prefetch, closest_slot, expansion, context,
+                                         continue_search))
                 return result.failed("Out of memory!");
         }
 
@@ -3393,18 +3399,36 @@ class index_gt {
     template <typename value_at, typename metric_at, typename predicate_at, typename prefetch_at>
     bool search_to_find_in_base_(                                                               //
         value_at&& query, metric_at&& metric, predicate_at&& predicate, prefetch_at&& prefetch, //
-        compressed_slot_t start_slot, std::size_t expansion, context_t& context) const noexcept {
+        compressed_slot_t start_slot, std::size_t expansion, context_t& context,
+        bool continue_search = false) const noexcept {
 
         visits_set_t& visits = context.visits;
+        visits_set_t& consumed = context.consumed;
         next_candidates_t& next = context.next_candidates; // pop min, push
         top_candidates_t& top = context.top_candidates;    // pop max, push
         std::size_t const top_limit = expansion;
 
-        visits.clear();
-        next.clear();
-        top.clear();
         if (!visits.reserve(config_.connectivity_base + 1u))
             return false;
+
+        visits.clear();
+        if (!continue_search) {
+            consumed.clear();
+            next.clear();
+        } else {
+            // When continuing search, we resume consuming from next, whereever we left off
+            usearch_assert_m(top.size() > 0, "index must be non-empty for search");
+            // start from the last result we returned
+            start_slot = top.bottom().slot;
+
+            // Save previously returned results to not return them again
+            if (!consumed.reserve(consumed.size() + top.size()))
+                return false;
+            while (top.size() > 0)
+                consumed.set(top.pop().slot);
+            fprintf(stderr, "   continue_search next size %ld top limit: %d \n", next.size(), top_limit);
+        }
+        top.clear();
 
         // Optional prefetching
         if (!is_dummy<prefetch_at>())
@@ -3412,7 +3436,8 @@ class index_gt {
 
         distance_t radius = context.measure(query, citerator_at(start_slot), metric);
         next.insert_reserved({-radius, static_cast<compressed_slot_t>(start_slot)});
-        top.insert_reserved({radius, static_cast<compressed_slot_t>(start_slot)});
+        if (!continue_search)
+            top.insert_reserved({radius, static_cast<compressed_slot_t>(start_slot)});
         visits.set(start_slot);
 
         while (!next.empty()) {
@@ -3438,7 +3463,7 @@ class index_gt {
             }
 
             for (compressed_slot_t successor_slot : candidate_neighbors) {
-                if (visits.set(successor_slot))
+                if (visits.set(successor_slot) || (continue_search && consumed.test(successor_slot)))
                     continue;
 
                 context.iteration_cycles++;
@@ -3466,7 +3491,8 @@ class index_gt {
     template <typename value_at, typename metric_at, typename predicate_at>
     void search_exact_(                                                 //
         value_at&& query, metric_at&& metric, predicate_at&& predicate, //
-        std::size_t count, context_t& context) const noexcept {
+        std::size_t count, context_t& context, bool continue_search = false) const noexcept {
+        usearch_assert_m(!continue_search, "continuing exact search is not implemented");
 
         top_candidates_t& top = context.top_candidates;
         top.clear();
