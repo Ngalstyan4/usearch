@@ -140,6 +140,6 @@ std::unique_ptr<NativeIndex> new_native_index(IndexOptions const& options) {
     assert(options.pq_output == options.pq_construction);
     opts.num_centroids = options.num_centroids;
     opts.num_subvectors = options.num_subvectors;
-    opts.scalar_bytes = bits_per_scalar(scalar_kind) / 8;
+    opts.scalar_bits = bits_per_scalar(scalar_kind);
     return wrap(index_t::make(metric, opts, options.num_threads, config, options.codebook));
 }
