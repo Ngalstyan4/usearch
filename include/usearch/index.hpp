@@ -3426,7 +3426,6 @@ class index_gt {
                 return false;
             while (top.size() > 0)
                 consumed.set(top.pop().slot);
-            fprintf(stderr, "   continue_search next size %ld top limit: %d \n", next.size(), top_limit);
         }
         top.clear();
 
