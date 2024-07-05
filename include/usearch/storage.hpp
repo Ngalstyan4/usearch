@@ -195,6 +195,7 @@ struct storage_options {
  **/
 #define ASSERT_VALID_STORAGE(CHECK_AT)                                                                                 \
     ASSERT_HAS_CONST_FUNCTION(CHECK_AT, get_node_at, CHECK_AT::node_t(std::size_t idx));                               \
+    ASSERT_HAS_CONST_FUNCTION(CHECK_AT, get_node_at_mut, CHECK_AT::node_t(std::size_t idx));                               \
     ASSERT_HAS_CONST_FUNCTION(CHECK_AT, get_vector_at, byte_t*(std::size_t idx));                                      \
     ASSERT_HAS_CONST_FUNCTION(CHECK_AT, node_size_bytes, std::size_t(std::size_t idx));                                \
     ASSERT_HAS_CONST_NOEXCEPT_FUNCTION(CHECK_AT, is_immutable, bool());                                                \
@@ -384,6 +385,7 @@ class storage_v2_at {
         : pre_(node_t::precompute_(config)), tape_allocator_(tape_allocator) {}
 
     inline node_t get_node_at(std::size_t idx) const noexcept { return nodes_[idx]; }
+    inline node_t get_node_at_mut(std::size_t idx) const noexcept { return nodes_[idx]; }
     // todo:: most of the time this is called for const* vector, maybe add a separate interface for const?
     inline byte_t* get_vector_at(std::size_t idx, byte_t* dst = nullptr) const noexcept {
         assert(dst == nullptr);

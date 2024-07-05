@@ -236,6 +236,16 @@ class lantern_storage_gt {
         return nodes_[idx];
     }
 
+    inline node_t get_node_at_mut(std::uint64_t idx) const noexcept {
+        if (loaded_ && is_external_ak) {
+            assert(retriever_ctx_ != nullptr);
+            char* tape = (char*)external_node_retriever_mut_(retriever_ctx_, idx);
+            return node_t{tape};
+        }
+
+        return nodes_[idx];
+    }
+
     inline byte_t* get_vector_at(std::uint64_t idx, byte_t* dst = nullptr) const noexcept {
         byte_t* res = nullptr;
         if (loaded_ && is_external_ak) {

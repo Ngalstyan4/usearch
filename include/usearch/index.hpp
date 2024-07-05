@@ -2213,7 +2213,7 @@ class index_gt {
     member_iterator_t begin() noexcept { return {this, 0}; }
     member_iterator_t end() noexcept { return {this, size()}; }
 
-    member_ref_t at(std::uint64_t slot) noexcept { return {storage_->get_node_at(slot).key(), slot}; }
+    member_ref_t at(std::uint64_t slot) noexcept { return {storage_->get_node_at_mut(slot).key(), slot}; }
     member_cref_t at(std::uint64_t slot) const noexcept { return {storage_->get_node_at(slot).ckey(), slot}; }
     member_iterator_t iterator_at(std::uint64_t slot) noexcept { return {this, slot}; }
     member_citerator_t citerator_at(std::uint64_t slot) const noexcept { return {this, slot}; }
@@ -2636,7 +2636,7 @@ class index_gt {
             return result.failed("Out of memory!");
 
         node_lock_t new_lock = storage_->node_lock(old_slot);
-        node_t node = storage_->get_node_at(old_slot);
+        node_t node = storage_->get_node_at_mut(old_slot);
 
         level_t node_level = node.level();
         span_bytes_t node_bytes = node.node_bytes(pre_);
@@ -3139,7 +3139,7 @@ class index_gt {
     compressed_slot_t connect_new_node_( //
         metric_at&& metric, compressed_slot_t new_slot, level_t level, context_t& context) usearch_noexcept_m {
 
-        node_t new_node = storage_->get_node_at(new_slot);
+        node_t new_node = storage_->get_node_at_mut(new_slot);
         top_candidates_t& top = context.top_candidates;
 
         // Outgoing links from `new_slot`:
@@ -3174,7 +3174,7 @@ class index_gt {
             if (close_slot == new_slot)
                 continue;
             node_lock_t close_lock = storage_->node_lock(close_slot);
-            node_t close_node = storage_->get_node_at(close_slot);
+            node_t close_node = storage_->get_node_at_mut(close_slot);
 
             neighbors_ref_t close_header = close_node.neighbors_(pre_, level);
             usearch_assert_m(close_header.size() <= connectivity_max, "Possible corruption");
