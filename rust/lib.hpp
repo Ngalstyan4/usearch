@@ -27,6 +27,11 @@ class NativeIndex {
     void add_f16(vector_key_t key, rust::Slice<uint16_t const> vector) const;
     void add_f32(vector_key_t key, rust::Slice<float const> vector) const;
     void add_f64(vector_key_t key, rust::Slice<double const> vector) const;
+    void add_b1_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const;
+    void add_i8_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const;
+    void add_f16_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const;
+    void add_f32_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const;
+    void add_f64_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const;
 
     Matches search_i8(rust::Slice<int8_t const> vector, size_t count) const;
     Matches search_f16(rust::Slice<uint16_t const> vector, size_t count) const;
@@ -69,3 +74,5 @@ class NativeIndex {
 };
 
 std::unique_ptr<NativeIndex> new_native_index(IndexOptions const& options);
+
+void throw_not_implemented_exception();

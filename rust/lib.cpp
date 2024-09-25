@@ -34,6 +34,11 @@ void NativeIndex::add_i8(vector_key_t key, rust::Slice<int8_t const> vec) const 
 void NativeIndex::add_f16(vector_key_t key, rust::Slice<uint16_t const> vec) const { index_->add(key, (f16_t const*)vec.data()).error.raise(); }
 void NativeIndex::add_f32(vector_key_t key, rust::Slice<float const> vec) const { index_->add(key, vec.data()).error.raise(); }
 void NativeIndex::add_f64(vector_key_t key, rust::Slice<double const> vec) const { index_->add(key, vec.data()).error.raise(); }
+void NativeIndex::add_b1_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const { index_->add(key, (b1x8_t const*)vec.data()).error.raise(); }
+void NativeIndex::add_i8_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const { index_->add(key, (int8_t const*)vec.data()).error.raise(); }
+void NativeIndex::add_f16_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const { index_->add(key, (f16_t const*)vec.data()).error.raise(); }
+void NativeIndex::add_f32_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const { index_->add(key, (float const*)vec.data()).error.raise(); }
+void NativeIndex::add_f64_from_bytes(vector_key_t key, rust::Slice<uint8_t const> vec) const { index_->add(key, (double const*)vec.data()).error.raise(); }
 
 Matches NativeIndex::search_i8(rust::Slice<int8_t const> vec, size_t count) const { return search_(*index_, vec.data(), count); }
 Matches NativeIndex::search_f16(rust::Slice<uint16_t const> vec, size_t count) const { return search_(*index_, (f16_t const*)vec.data(), count); }
@@ -143,3 +148,5 @@ std::unique_ptr<NativeIndex> new_native_index(IndexOptions const& options) {
     opts.scalar_bits = bits_per_scalar(scalar_kind);
     return wrap(index_t::make(metric, opts, options.num_threads, config, options.codebook));
 }
+
+void throw_not_implemented_exception() { throw std::runtime_error("method is not implemented for this type"); }

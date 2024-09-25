@@ -2709,7 +2709,7 @@ class index_gt {
             if (!top.reserve(expansion))
                 return result.failed("Out of memory!");
 
-            compressed_slot_t closest_slot = -1;
+            compressed_slot_t closest_slot;
             if (!continue_search)
                 closest_slot = search_for_one_(query, metric, prefetch, entry_slot_, max_level_, 0, context);
 

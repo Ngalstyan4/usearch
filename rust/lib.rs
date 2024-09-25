@@ -70,6 +70,11 @@ pub mod ffi {
         pub fn add_f16(self: &NativeIndex, key: u64, vector: &[u16]) -> Result<()>;
         pub fn add_f32(self: &NativeIndex, key: u64, vector: &[f32]) -> Result<()>;
         pub fn add_f64(self: &NativeIndex, key: u64, vector: &[f64]) -> Result<()>;
+        pub fn add_b1_from_bytes(self: &NativeIndex, key: u64, vector: &[u8]) -> Result<()>;
+        pub fn add_i8_from_bytes(self: &NativeIndex, key: u64, vector: &[u8]) -> Result<()>;
+        pub fn add_f16_from_bytes(self: &NativeIndex, key: u64, vector: &[u8]) -> Result<()>;
+        pub fn add_f32_from_bytes(self: &NativeIndex, key: u64, vector: &[u8]) -> Result<()>;
+        pub fn add_f64_from_bytes(self: &NativeIndex, key: u64, vector: &[u8]) -> Result<()>;
 
         pub fn search_i8(self: &NativeIndex, query: &[i8], count: usize) -> Result<Matches>;
         pub fn search_f16(self: &NativeIndex, query: &[u16], count: usize) -> Result<Matches>;
@@ -95,6 +100,7 @@ pub mod ffi {
         pub fn save_to_buffer(self: &NativeIndex, buffer: &mut [u8]) -> Result<()>;
         pub fn load_from_buffer(self: &NativeIndex, buffer: &[u8]) -> Result<()>;
         pub fn view_from_buffer(self: &NativeIndex, buffer: &[u8]) -> Result<()>;
+        pub fn throw_not_implemented_exception() -> Result<()>;
     }
 }
 
@@ -148,12 +154,57 @@ pub trait VectorType {
     fn add(index: &Index, key: u64, vector: &[Self]) -> Result<(), cxx::Exception>
     where
         Self: Sized;
+    fn add_raw(
+        index: &Index,
+        key: u64,
+        vector: &[Self],
+        element_bits: usize,
+    ) -> Result<(), cxx::Exception>
+    where
+        Self: Sized;
     fn get(index: &Index, key: u64, buffer: &mut [Self]) -> Result<usize, cxx::Exception>
     where
         Self: Sized;
     fn search(index: &Index, query: &[Self], count: usize) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized;
+}
+
+impl VectorType for u8 {
+    fn search(
+        _index: &Index,
+        _query: &[Self],
+        _count: usize,
+    ) -> Result<ffi::Matches, cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(ffi::Matches {
+            keys: vec![],
+            distances: vec![],
+        })
+    }
+    fn get(_index: &Index, _key: u64, _vector: &mut [Self]) -> Result<usize, cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(0)
+    }
+    fn add(_index: &Index, _key: u64, _vector: &[Self]) -> Result<(), cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(())
+    }
+    fn add_raw(
+        index: &Index,
+        key: u64,
+        vector: &[Self],
+        element_bits: usize,
+    ) -> Result<(), cxx::Exception> {
+        match element_bits {
+            64 => index.inner.add_f64_from_bytes(key, vector),
+            32 => index.inner.add_f32_from_bytes(key, vector),
+            16 => index.inner.add_f16_from_bytes(key, vector),
+            8 => index.inner.add_i8_from_bytes(key, vector),
+            1 => index.inner.add_b1_from_bytes(key, vector),
+            _ => index.inner.add_b1_from_bytes(key, vector),
+        }
+    }
 }
 
 impl VectorType for i8 {
@@ -165,6 +216,15 @@ impl VectorType for i8 {
     }
     fn add(index: &Index, key: u64, vector: &[Self]) -> Result<(), cxx::Exception> {
         index.inner.add_i8(key, vector)
+    }
+    fn add_raw(
+        _index: &Index,
+        _key: u64,
+        _vector: &[Self],
+        _element_bits: usize,
+    ) -> Result<(), cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(())
     }
 }
 
@@ -178,6 +238,15 @@ impl VectorType for f32 {
     fn add(index: &Index, key: u64, vector: &[Self]) -> Result<(), cxx::Exception> {
         index.inner.add_f32(key, vector)
     }
+    fn add_raw(
+        _index: &Index,
+        _key: u64,
+        _vector: &[Self],
+        _element_bits: usize,
+    ) -> Result<(), cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(())
+    }
 }
 
 impl VectorType for f64 {
@@ -189,6 +258,15 @@ impl VectorType for f64 {
     }
     fn add(index: &Index, key: u64, vector: &[Self]) -> Result<(), cxx::Exception> {
         index.inner.add_f64(key, vector)
+    }
+    fn add_raw(
+        _index: &Index,
+        _key: u64,
+        _vector: &[Self],
+        _element_bits: usize,
+    ) -> Result<(), cxx::Exception> {
+        ffi::throw_not_implemented_exception()?;
+        Ok(())
     }
 }
 
@@ -246,6 +324,23 @@ impl Index {
     /// * `vector` - A slice containing the vector data.
     pub fn add<T: VectorType>(self: &Index, key: u64, vector: &[T]) -> Result<(), cxx::Exception> {
         T::add(self, key, vector)
+    }
+
+    /// Adds a vector with a specified key to the index.
+    /// Vector should be bytearray
+    /// It will be automatically casted based on quantization
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key associated with the vector.
+    /// * `vector` - A slice containing the vector data (byte array).
+    pub fn add_raw<T: VectorType>(
+        self: &Index,
+        key: u64,
+        vector: &[T],
+        element_bits: usize,
+    ) -> Result<(), cxx::Exception> {
+        T::add_raw(self, key, vector, element_bits)
     }
 
     /// Extracts one or more vectors matching the specified key.

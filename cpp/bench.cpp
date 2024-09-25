@@ -490,7 +490,7 @@ void run_punned(dataset_at& dataset, args_t const& args, index_config_t config, 
     metric_punned_t metric(dataset.dimensions(), kind, quantization);
     storage_options opts;
     opts.dimensions = metric.dimensions();
-    opts.scalar_bytes = bits_per_scalar(quantization) / 8;
+    opts.scalar_bits = bits_per_scalar(quantization) / 8;
     opts.pq = args.pq;
     opts.num_subvectors = args.num_subvectors;
     opts.num_centroids = args.num_centroids;
@@ -515,7 +515,7 @@ void run_punned(dataset_at& dataset, args_t const& args, index_config_t config, 
         std::printf("-- Num subvectors: %ld\n", args.num_subvectors);
         std::printf("-- Num centroids: %ld\n", args.num_centroids);
     }
-    std::printf("-- Scalar Bytes %ld\n", opts.scalar_bytes);
+    std::printf("-- Scalar Bytes %ld\n", opts.scalar_bits);
     std::printf("-- Hardware concurrency: %d\n", std::thread::hardware_concurrency());
     std::printf("-- Hardware acceleration: %s\n", index.metric().isa_name());
     std::printf("Will benchmark in-memory\n");

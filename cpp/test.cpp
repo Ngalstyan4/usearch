@@ -198,7 +198,7 @@ void test_cosine(std::size_t collection_size, std::size_t dimensions) {
 
     storage_options opts;
     opts.dimensions = dimensions;
-    opts.scalar_bytes = bits_per_scalar(scalar_kind<scalar_at>());
+    opts.scalar_bits = bits_per_scalar(scalar_kind<scalar_at>());
     opts.pq = false;
     // Template:
     for (std::size_t connectivity : {3, 13, 50}) {
@@ -238,7 +238,7 @@ template <typename key_at, typename slot_at> void test_tanimoto(std::size_t dime
     using slot_t = slot_at;
     storage_options opts;
     opts.dimensions = dimensions;
-    opts.scalar_bytes = bits_per_scalar(scalar_kind_t::b1x8_k);
+    opts.scalar_bits = bits_per_scalar(scalar_kind_t::b1x8_k);
     opts.pq = false;
 
     using index_punned_t = index_dense_gt<vector_key_t, slot_t>;
