@@ -96,6 +96,7 @@ pub mod ffi {
         pub fn view(self: &NativeIndex, path: &str) -> Result<()>;
         pub fn reset(self: &NativeIndex) -> Result<()>;
         pub fn memory_usage(self: &NativeIndex) -> usize;
+        pub fn hardware_acceleration(self: &NativeIndex) -> *const c_char;
 
         pub fn save_to_buffer(self: &NativeIndex, buffer: &mut [u8]) -> Result<()>;
         pub fn load_from_buffer(self: &NativeIndex, buffer: &[u8]) -> Result<()>;
@@ -296,6 +297,15 @@ impl Index {
     /// Updates the expansion value used during search operations.
     pub fn change_expansion_search(self: &Index, n: usize) -> Result<(), cxx::Exception> {
         self.inner.change_expansion_search(n)
+    }
+
+    /// Retrieves the hardware acceleration information.
+    pub fn hardware_acceleration(&self) -> String {
+        use core::ffi::CStr;
+        unsafe {
+            let c_str = CStr::from_ptr(self.inner.hardware_acceleration());
+            c_str.to_string_lossy().into_owned()
+        }
     }
 
     /// Performs k-Approximate Nearest Neighbors (kANN) Search for closest vectors to the provided query.
