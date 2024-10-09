@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <csignal>
 #include <cstdio>
